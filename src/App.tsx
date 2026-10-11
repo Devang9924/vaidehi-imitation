@@ -5,6 +5,7 @@ import {
   getShowSamplesPreference,
   setShowSamplesPreference,
 } from './lib/productStore';
+import { SAMPLE_PRODUCTS } from './data/sampleProducts';
 import { getDiscountPercentage } from './lib/whatsapp';
 
 // UI Components
@@ -56,7 +57,10 @@ export const App: React.FC = () => {
 
   // Customer modal states
   const [selectedProductDetails, setSelectedProductDetails] = useState<Product | null>(null);
+  const [selectedProductImageIndex, setSelectedProductImageIndex] = useState<number>(0);
   const [buyProduct, setBuyProduct] = useState<Product | null>(null);
+  const [buyProductSelectedImage, setBuyProductSelectedImage] = useState<string | null>(null);
+  const [buyProductSelectedImageIndex, setBuyProductSelectedImageIndex] = useState<number>(0);
 
   // Listen to browser location changes (history / hash)
   useEffect(() => {
@@ -100,14 +104,16 @@ export const App: React.FC = () => {
   }, [refreshProducts]);
 
   // Deep-linking: Automatically open individual product details modal if URL has ?product=CODE or #product-CODE
+  // Re-evaluates when allProducts finishes loading from Supabase
   useEffect(() => {
-    if (allProducts.length === 0 || isAdminRoute) return;
+    if (isAdminRoute) return;
 
     const syncProductFromUrl = () => {
       if (typeof window === 'undefined') return;
 
       const params = new URLSearchParams(window.location.search);
       const queryParam = params.get('product') || params.get('code') || params.get('p') || params.get('id');
+      const imgParam = params.get('img') || params.get('image');
 
       let target = queryParam;
       if (!target && window.location.hash.startsWith('#product-')) {
@@ -116,15 +122,38 @@ export const App: React.FC = () => {
 
       if (target) {
         const clean = target.trim().toLowerCase();
-        const found = allProducts.find((p) => {
+        const stripped = clean.replace(/[\s-_]+/g, '');
+
+        // Search among Supabase products first; fallback to SAMPLE_PRODUCTS
+        const pool = allProducts.length > 0 ? allProducts : SAMPLE_PRODUCTS;
+        let found = pool.find((p) => {
           const codeMatch = p.code.toLowerCase().trim() === clean;
           const idMatch = p.id.toLowerCase() === clean;
-          const strippedCodeMatch = p.code.toLowerCase().replace(/[\s-_]+/g, '') === clean.replace(/[\s-_]+/g, '');
+          const strippedCodeMatch = p.code.toLowerCase().replace(/[\s-_]+/g, '') === stripped;
           return codeMatch || idMatch || strippedCodeMatch;
         });
 
+        if (!found && allProducts.length > 0) {
+          found = SAMPLE_PRODUCTS.find((p) => {
+            const codeMatch = p.code.toLowerCase().trim() === clean;
+            const idMatch = p.id.toLowerCase() === clean;
+            const strippedCodeMatch = p.code.toLowerCase().replace(/[\s-_]+/g, '') === stripped;
+            return codeMatch || idMatch || strippedCodeMatch;
+          });
+        }
+
         if (found) {
           setSelectedProductDetails(found);
+          if (imgParam) {
+            const parsedIdx = parseInt(imgParam, 10);
+            if (!isNaN(parsedIdx) && parsedIdx >= 0 && parsedIdx < (found.images?.length || 1)) {
+              setSelectedProductImageIndex(parsedIdx);
+            } else {
+              setSelectedProductImageIndex(0);
+            }
+          } else {
+            setSelectedProductImageIndex(0);
+          }
         }
       }
     };
@@ -138,19 +167,35 @@ export const App: React.FC = () => {
     };
   }, [allProducts, isAdminRoute]);
 
-  const handleOpenProductDetails = (product: Product) => {
+  const handleOpenProductDetails = (product: Product, initialImageIndex?: number) => {
     setSelectedProductDetails(product);
+    const imgIdx = initialImageIndex ?? 0;
+    setSelectedProductImageIndex(imgIdx);
     if (typeof window !== 'undefined') {
-      const newUrl = `${window.location.pathname}?product=${encodeURIComponent(product.code)}`;
+      const imgParam = imgIdx > 0 ? `&img=${imgIdx}` : '';
+      const newUrl = `${window.location.pathname}?product=${encodeURIComponent(product.code)}${imgParam}`;
       window.history.replaceState(null, '', newUrl);
     }
   };
 
   const handleCloseProductDetails = () => {
     setSelectedProductDetails(null);
+    setSelectedProductImageIndex(0);
     if (typeof window !== 'undefined' && window.location.search.includes('product=')) {
       window.history.replaceState(null, '', window.location.pathname);
     }
+  };
+
+  const handleOpenBuy = (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => {
+    setBuyProduct(product);
+    setBuyProductSelectedImage(selectedImageUrl || (product.images && product.images[0]) || null);
+    setBuyProductSelectedImageIndex(selectedImageIndex ?? 0);
+  };
+
+  const handleCloseBuy = () => {
+    setBuyProduct(null);
+    setBuyProductSelectedImage(null);
+    setBuyProductSelectedImageIndex(0);
   };
 
   // Toggle sample demo products visibility
@@ -280,7 +325,7 @@ export const App: React.FC = () => {
           showSampleProducts={showSampleProducts}
           onToggleSampleProducts={handleToggleSampleProducts}
           onViewDetails={handleOpenProductDetails}
-          onBuyNow={(product) => setBuyProduct(product)}
+          onBuyNow={handleOpenBuy}
           onResetFilters={handleResetFilters}
         />
 
@@ -313,17 +358,20 @@ export const App: React.FC = () => {
       {/* Product Detail Modal */}
       <ProductDetailModal
         product={selectedProductDetails}
+        initialImageIndex={selectedProductImageIndex}
         onClose={handleCloseProductDetails}
-        onBuyNow={(product) => {
+        onBuyNow={(product, selectedImageUrl, selectedImageIndex) => {
           handleCloseProductDetails();
-          setBuyProduct(product);
+          handleOpenBuy(product, selectedImageUrl, selectedImageIndex);
         }}
       />
 
       {/* Buy Order Modal (WhatsApp formulation) */}
       <BuyOrderModal
         product={buyProduct}
-        onClose={() => setBuyProduct(null)}
+        selectedImageUrl={buyProductSelectedImage}
+        selectedImageIndex={buyProductSelectedImageIndex}
+        onClose={handleCloseBuy}
       />
 
     </div>

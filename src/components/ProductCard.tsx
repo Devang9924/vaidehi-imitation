@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { MessageCircle, ShoppingBag, Eye, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Product } from '../types';
-import { formatINR, getDiscountPercentage, createProductInquiryUrl } from '../lib/whatsapp';
+import { formatINR, getDiscountPercentage, shareWithImageFileOrFallback } from '../lib/whatsapp';
 
 interface ProductCardProps {
   product: Product;
   index?: number;
-  onViewDetails: (product: Product) => void;
-  onBuyNow: (product: Product) => void;
+  onViewDetails: (product: Product, selectedImageIndex?: number) => void;
+  onBuyNow: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -23,6 +23,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     ? product.images
     : ['/images/sample-necklace-1.jpg'];
 
+  const selectedImageUrl = images[activeImageIndex] || images[0];
+
   const handlePrevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -33,11 +35,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     setActiveImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   };
 
-  const inquiryUrl = createProductInquiryUrl(product);
-
   return (
     <div
-      onClick={() => onViewDetails(product)}
+      onClick={() => onViewDetails(product, activeImageIndex)}
       style={{ animationDelay: `${Math.min(index * 50, 450)}ms` }}
       className="group relative bg-white rounded-2xl sm:rounded-3xl border border-[#F5D8E0] overflow-hidden rose-gold-card-shadow rose-gold-card-hover cursor-pointer flex flex-col justify-between transition-all animate-fade-in-up"
     >
@@ -157,23 +157,30 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Dual Action Buttons with pressable micro-interactions */}
           <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
             {/* Quick Inquiry on WhatsApp */}
-            <a
-              href={inquiryUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 transition-all text-center pressable"
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                await shareWithImageFileOrFallback({
+                  product,
+                  selectedImageUrl,
+                  imageIndex: activeImageIndex,
+                  actionType: 'inquiry',
+                });
+              }}
+              className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 transition-all text-center pressable cursor-pointer"
               title="Inquire on WhatsApp"
             >
               <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>Inquire</span>
-            </a>
+            </button>
 
             {/* Buy Now Button (Opens Order Form) */}
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onBuyNow(product);
+                onBuyNow(product, selectedImageUrl, activeImageIndex);
               }}
               className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 shadow-2xs hover:shadow-sm transition-all text-center pressable cursor-pointer"
             >

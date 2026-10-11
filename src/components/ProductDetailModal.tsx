@@ -1,27 +1,37 @@
-import React, { useState } from 'react';
-import { X, MessageCircle, ShoppingBag, Share2, Check, Tag, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, MessageCircle, ShoppingBag, Share2, Check, Tag, ShieldCheck, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import type { Product } from '../types';
 import {
   formatINR,
   getDiscountPercentage,
-  createProductInquiryUrl,
-  createProductShareWhatsAppUrl,
   getIndividualProductUrl,
+  shareWithImageFileOrFallback,
 } from '../lib/whatsapp';
 
 interface ProductDetailModalProps {
   product: Product | null;
+  initialImageIndex?: number;
   onClose: () => void;
-  onBuyNow: (product: Product) => void;
+  onBuyNow: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   product,
+  initialImageIndex = 0,
   onClose,
   onBuyNow,
 }) => {
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [activeImageIndex, setActiveImageIndex] = useState(initialImageIndex);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  useEffect(() => {
+    if (initialImageIndex !== undefined) {
+      setActiveImageIndex(initialImageIndex);
+    } else {
+      setActiveImageIndex(0);
+    }
+  }, [product?.id, initialImageIndex]);
 
   if (!product) return null;
 
@@ -29,10 +39,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     ? product.images
     : ['/images/sample-necklace-1.jpg'];
 
+  const selectedImageUrl = images[activeImageIndex] || images[0];
   const discount = getDiscountPercentage(product.original_price, product.selling_price);
-  const inquiryUrl = createProductInquiryUrl(product);
-  const shareWhatsAppUrl = createProductShareWhatsAppUrl(product);
-  const productPageUrl = getIndividualProductUrl(product);
+  const productPageUrl = getIndividualProductUrl(product, activeImageIndex);
 
   const handleCopyLink = async () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -48,6 +57,36 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const handleNext = () => {
     setActiveImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleShareWhatsApp = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    try {
+      await shareWithImageFileOrFallback({
+        product,
+        selectedImageUrl,
+        imageIndex: activeImageIndex,
+        actionType: 'share',
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleInquireWhatsApp = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
+    try {
+      await shareWithImageFileOrFallback({
+        product,
+        selectedImageUrl,
+        imageIndex: activeImageIndex,
+        actionType: 'inquiry',
+      });
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
@@ -146,16 +185,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
               {/* Share actions */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <a
-                  href={shareWhatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 transition-colors cursor-pointer pressable"
+                <button
+                  type="button"
+                  onClick={handleShareWhatsApp}
+                  disabled={isSharing}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 transition-colors cursor-pointer pressable disabled:opacity-50"
                   title="Share product details & image via WhatsApp"
                 >
-                  <MessageCircle className="w-3 h-3 text-emerald-600" />
+                  {isSharing ? <Loader2 className="w-3 h-3 text-emerald-600 animate-spin" /> : <MessageCircle className="w-3 h-3 text-emerald-600" />}
                   <span>Share on WhatsApp</span>
-                </a>
+                </button>
 
                 <button
                   type="button"
@@ -225,23 +264,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <div className="pt-6 mt-6 border-t border-[#F8E3E8] space-y-2.5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {/* WhatsApp Inquiry */}
-              <a
-                href={inquiryUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="py-3 px-4 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-center"
+              <button
+                type="button"
+                onClick={handleInquireWhatsApp}
+                disabled={isSharing}
+                className="py-3 px-4 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-center cursor-pointer pressable disabled:opacity-50"
               >
-                <MessageCircle className="w-4 h-4 text-emerald-600" />
+                {isSharing ? <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" /> : <MessageCircle className="w-4 h-4 text-emerald-600" />}
                 <span>Inquire on WhatsApp</span>
-              </a>
+              </button>
 
               {/* Buy Now (Order Modal) */}
               <button
+                type="button"
                 onClick={() => {
                   onClose();
-                  onBuyNow(product);
+                  onBuyNow(product, selectedImageUrl, activeImageIndex);
                 }}
-                className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all text-center"
+                className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all text-center cursor-pointer pressable"
               >
                 <ShoppingBag className="w-4 h-4" />
                 <span>Buy Now (WhatsApp Form)</span>

@@ -1,15 +1,22 @@
 import React, { useState } from 'react';
-import { X, MessageCircle, CheckCircle2, ShieldCheck, ShoppingBag, MapPin, Phone, User } from 'lucide-react';
+import { X, MessageCircle, CheckCircle2, ShieldCheck, ShoppingBag, MapPin, Phone, User, Loader2 } from 'lucide-react';
 import type { Product, CustomerOrderForm } from '../types';
-import { formatINR, createBuyOrderWhatsAppUrl } from '../lib/whatsapp';
+import { formatINR, createBuyOrderWhatsAppUrl, shareWithImageFileOrFallback } from '../lib/whatsapp';
 import { BUSINESS_DETAILS } from '../data/business';
 
 interface BuyOrderModalProps {
   product: Product | null;
+  selectedImageUrl?: string | null;
+  selectedImageIndex?: number;
   onClose: () => void;
 }
 
-export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({ product, onClose }) => {
+export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({
+  product,
+  selectedImageUrl,
+  selectedImageIndex = 0,
+  onClose,
+}) => {
   const [formData, setFormData] = useState<CustomerOrderForm>({
     name: '',
     phone: '',
@@ -21,9 +28,13 @@ export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({ product, onClose }
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState('');
 
   if (!product) return null;
+
+  const activeImageUrl = selectedImageUrl || (product.images && product.images[0]) || '/images/sample-necklace-1.jpg';
+  const activeImageIdx = selectedImageIndex ?? 0;
 
   const validate = (): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -52,16 +63,26 @@ export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({ product, onClose }
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const url = createBuyOrderWhatsAppUrl(product, formData);
+    setIsSharing(true);
+    const url = createBuyOrderWhatsAppUrl(product, formData, activeImageUrl, activeImageIdx);
     setGeneratedUrl(url);
     setIsSubmitted(true);
 
-    // Open WhatsApp in a new tab
-    window.open(url, '_blank');
+    try {
+      await shareWithImageFileOrFallback({
+        product,
+        selectedImageUrl: activeImageUrl,
+        imageIndex: activeImageIdx,
+        orderForm: formData,
+        actionType: 'buy',
+      });
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
@@ -98,14 +119,21 @@ export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({ product, onClose }
             {/* Selected Product Summary Box */}
             <div className="bg-[#FFF8F9] rounded-2xl p-3.5 border border-[#F5D8E0] flex items-center gap-3.5 mb-5">
               <img
-                src={product.images[0] || '/images/sample-necklace-1.jpg'}
+                src={activeImageUrl}
                 alt={product.name}
                 className="w-16 h-16 rounded-xl object-cover border border-[#F0C9D3] shrink-0"
               />
               <div className="min-w-0 flex-1">
-                <span className="block text-[10px] font-mono font-bold text-[#8B4F58]">
-                  CODE: {product.code}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="block text-[10px] font-mono font-bold text-[#8B4F58]">
+                    CODE: {product.code}
+                  </span>
+                  {product.images && product.images.length > 1 && (
+                    <span className="text-[10px] text-[#8B4F58] font-medium bg-[#FCECEF] px-1.5 py-0.5 rounded border border-[#F5D8E0]">
+                      Photo {activeImageIdx + 1} of {product.images.length}
+                    </span>
+                  )}
+                </div>
                 <h4 className="text-sm font-semibold text-[#1F1A1C] truncate">
                   {product.name}
                 </h4>
@@ -236,10 +264,11 @@ export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({ product, onClose }
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                disabled={isSharing}
+                className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 disabled:opacity-60"
               >
-                <MessageCircle className="w-4 h-4 fill-current" />
-                <span>Submit & Open WhatsApp Order</span>
+                {isSharing ? <Loader2 className="w-4 h-4 fill-current animate-spin" /> : <MessageCircle className="w-4 h-4 fill-current" />}
+                <span>{isSharing ? 'Preparing Order & Image...' : 'Submit & Open WhatsApp Order'}</span>
               </button>
 
             </form>
@@ -256,13 +285,19 @@ export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({ product, onClose }
             </h3>
             
             <p className="text-xs sm:text-sm text-[#5A4E53] max-w-sm mx-auto leading-relaxed">
-              We have opened WhatsApp for you. <strong>Please tap 'Send' in WhatsApp</strong> to transmit your order details directly to <strong>Akshaysinh Kher (9687599517)</strong>.
+              We have initiated WhatsApp for you. <strong>Please tap 'Send' in WhatsApp</strong> to transmit your order details directly to <strong>Akshaysinh Kher (9687599517)</strong>.
             </p>
 
             <div className="bg-[#FFF8F9] rounded-2xl p-4 border border-[#F5D8E0] text-xs text-left text-[#5A4E53] space-y-1">
               <div><strong>Recipient:</strong> Akshaysinh Kher (Vaidehi Imitation)</div>
               <div><strong>Item:</strong> {product.name} ({product.code})</div>
+              <div><strong>Selected Photo:</strong> Photo {activeImageIdx + 1} of {product.images?.length || 1}</div>
               <div><strong>Delivery To:</strong> {formData.name}, {formData.pincode}</div>
+            </div>
+
+            <div className="text-[11px] text-gray-600 bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-left">
+              <span className="font-semibold text-amber-900">Delivery Notice: </span>
+              <span>On supported mobile browsers, the share sheet shares the actual photo file directly. On desktop or standard web links, your message contains the full item details, address, and direct high-resolution image link.</span>
             </div>
 
             <div className="space-y-2 pt-2">
@@ -270,7 +305,7 @@ export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({ product, onClose }
                 href={generatedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-colors"
+                className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4" />
                 <span>Re-open WhatsApp Chat</span>

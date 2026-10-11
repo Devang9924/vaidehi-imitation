@@ -11,8 +11,8 @@ interface ProductGridProps {
   error: string | null;
   showSampleProducts: boolean;
   onToggleSampleProducts: () => void;
-  onViewDetails: (product: Product) => void;
-  onBuyNow: (product: Product) => void;
+  onViewDetails: (product: Product, selectedImageIndex?: number) => void;
+  onBuyNow: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
   onResetFilters: () => void;
 }
 

@@ -31,43 +31,52 @@ export const getWhatsAppUrl = (phone: string, text: string): string => {
 };
 
 /**
- * Resolve direct public image URL for a product (absolute URL for WhatsApp & sharing)
+ * Resolve direct public image URL for a product (absolute URL for WhatsApp & sharing).
+ * Uses the currently selected gallery image if supplied; otherwise falls back to the primary image.
  */
-export const getProductDirectImageUrl = (product: Product): string | null => {
-  if (!product.images || product.images.length === 0) return null;
-  const first = product.images[0]?.trim();
-  if (!first) return null;
+export const getProductDirectImageUrl = (
+  product: Product,
+  customImageUrl?: string | null
+): string | null => {
+  const target = (customImageUrl && customImageUrl.trim()) || product.images?.[0]?.trim();
+  if (!target) return null;
 
   // Already a full public URL (e.g. Supabase Storage public bucket)
-  if (first.startsWith('http://') || first.startsWith('https://')) {
-    return first;
+  if (target.startsWith('http://') || target.startsWith('https://')) {
+    return target;
   }
 
   // Relative path (e.g. /images/sample-necklace-1.jpg) - resolve to full public URL
   const origin = typeof window !== 'undefined' && window.location.origin
     ? window.location.origin
     : 'https://vaidehi-imitation.vercel.app';
-  const cleanPath = first.startsWith('/') ? first : `/${first}`;
+  const cleanPath = target.startsWith('/') ? target : `/${target}`;
   return `${origin}${cleanPath}`;
 };
 
 /**
- * Resolve individual direct product page URL
+ * Resolve individual direct product page URL (e.g. https://domain.com/?product=VK120&img=2).
+ * Preserves both product code and active image index.
  */
-export const getIndividualProductUrl = (product: Product): string => {
+export const getIndividualProductUrl = (product: Product, imageIndex?: number): string => {
   const origin = typeof window !== 'undefined' && window.location.origin
     ? window.location.origin
     : 'https://vaidehi-imitation.vercel.app';
   const code = encodeURIComponent(product.code.trim());
-  return `${origin}/?product=${code}`;
+  const imgParam = typeof imageIndex === 'number' && imageIndex > 0 ? `&img=${imageIndex}` : '';
+  return `${origin}/?product=${code}${imgParam}`;
 };
 
 /**
- * Generate Product Inquiry WhatsApp link
+ * Generate Product Inquiry WhatsApp link using the currently selected image
  */
-export const createProductInquiryUrl = (product: Product): string => {
-  const productUrl = getIndividualProductUrl(product);
-  const imageUrl = getProductDirectImageUrl(product);
+export const createProductInquiryUrl = (
+  product: Product,
+  selectedImageUrl?: string | null,
+  imageIndex?: number
+): string => {
+  const productUrl = getIndividualProductUrl(product, imageIndex);
+  const imageUrl = getProductDirectImageUrl(product, selectedImageUrl);
 
   const priceText = product.selling_price > 0
     ? `${formatINR(product.selling_price)}${product.original_price > product.selling_price ? ` (MRP: ${formatINR(product.original_price)})` : ''}`
@@ -82,7 +91,7 @@ export const createProductInquiryUrl = (product: Product): string => {
     `• *Product Code:* ${product.code}`,
     `• *Category:* ${product.category} (${product.gender})`,
     `• *Price:* ${priceText}`,
-    imageUrl ? `• *Product Image:* ${imageUrl}` : null,
+    imageUrl ? `• *Product Photo:* ${imageUrl}` : null,
     `• *Product Page:* ${productUrl}`,
     ``,
     `Could you please share availability, close-up video/photos, and delivery time to my pincode?`,
@@ -95,11 +104,17 @@ export const createProductInquiryUrl = (product: Product): string => {
 };
 
 /**
- * Generate Buy Order WhatsApp link after customer completes the order form
+ * Generate Buy Order WhatsApp link after customer completes the order form.
+ * Preserves the exact selected image and all delivery information.
  */
-export const createBuyOrderWhatsAppUrl = (product: Product, order: CustomerOrderForm): string => {
-  const productUrl = getIndividualProductUrl(product);
-  const imageUrl = getProductDirectImageUrl(product);
+export const createBuyOrderWhatsAppUrl = (
+  product: Product,
+  order: CustomerOrderForm,
+  selectedImageUrl?: string | null,
+  imageIndex?: number
+): string => {
+  const productUrl = getIndividualProductUrl(product, imageIndex);
+  const imageUrl = getProductDirectImageUrl(product, selectedImageUrl);
 
   const priceText = product.selling_price > 0
     ? `${formatINR(product.selling_price)}${product.original_price > product.selling_price ? ` (MRP: ${formatINR(product.original_price)})` : ''}`
@@ -115,7 +130,7 @@ export const createBuyOrderWhatsAppUrl = (product: Product, order: CustomerOrder
     `• *Product Code:* ${product.code}`,
     `• *Category:* ${product.category} (${product.gender})`,
     `• *Price:* ${priceText}`,
-    imageUrl ? `• *Product Image:* ${imageUrl}` : null,
+    imageUrl ? `• *Selected Photo:* ${imageUrl}` : null,
     `• *Product Page:* ${productUrl}`,
     ``,
     `*DELIVERY & CUSTOMER DETAILS:*`,
@@ -137,11 +152,16 @@ export const createBuyOrderWhatsAppUrl = (product: Product, order: CustomerOrder
 };
 
 /**
- * Generate Product Share WhatsApp link (share with contacts/family)
+ * Generate Product Share WhatsApp link (share with contacts/family).
+ * Uses the currently selected image and product page URL.
  */
-export const createProductShareWhatsAppUrl = (product: Product): string => {
-  const productUrl = getIndividualProductUrl(product);
-  const imageUrl = getProductDirectImageUrl(product);
+export const createProductShareWhatsAppUrl = (
+  product: Product,
+  selectedImageUrl?: string | null,
+  imageIndex?: number
+): string => {
+  const productUrl = getIndividualProductUrl(product, imageIndex);
+  const imageUrl = getProductDirectImageUrl(product, selectedImageUrl);
 
   const priceText = product.selling_price > 0
     ? `${formatINR(product.selling_price)}${product.original_price > product.selling_price ? ` (MRP: ${formatINR(product.original_price)})` : ''}`
@@ -154,7 +174,7 @@ export const createProductShareWhatsAppUrl = (product: Product): string => {
     `• *Code:* ${product.code}`,
     `• *Category:* ${product.category} (${product.gender})`,
     `• *Price:* ${priceText}`,
-    imageUrl ? `• *Product Photo:* ${imageUrl}` : null,
+    imageUrl ? `• *Selected Photo:* ${imageUrl}` : null,
     `• *View on Website:* ${productUrl}`,
     ``,
     `To order or inquire, visit the product link above or contact Akshaysinh Kher (+91 ${BUSINESS_DETAILS.whatsappPhone}).`,
@@ -170,4 +190,139 @@ export const createProductShareWhatsAppUrl = (product: Product): string => {
 export const createGeneralInquiryUrl = (customText?: string): string => {
   const defaultText = `Hello Akshaysinh Kher (Vaidehi Imitation, Dhasa Junction), I would like to inquire about your jewellery collection and custom bridal sets.`;
   return getWhatsAppUrl(BUSINESS_DETAILS.whatsappPhone, customText || defaultText);
+};
+
+/**
+ * Attempt to convert an image URL into a real File object for Web Share API.
+ * Returns null if CORS, network, or browser File constructor fails.
+ */
+export const fetchImageAsFile = async (
+  imageUrl: string,
+  filenamePrefix: string
+): Promise<File | null> => {
+  try {
+    if (typeof window === 'undefined' || !window.fetch) return null;
+    const response = await fetch(imageUrl, { mode: 'cors', credentials: 'omit' });
+    if (!response.ok) return null;
+
+    const blob = await response.blob();
+    const mimeType = blob.type || 'image/jpeg';
+    let ext = '.jpg';
+    if (mimeType.includes('png')) ext = '.png';
+    else if (mimeType.includes('webp')) ext = '.webp';
+
+    const safeName = `${filenamePrefix.replace(/[^a-zA-Z0-9_-]/g, '_')}${ext}`;
+    return new File([blob], safeName, { type: mimeType });
+  } catch (err) {
+    console.warn('Could not fetch image file for sharing (CORS or network limitation):', err);
+    return null;
+  }
+};
+
+export interface ShareOptions {
+  product: Product;
+  selectedImageUrl?: string | null;
+  imageIndex?: number;
+  actionType?: 'inquiry' | 'buy' | 'share';
+  orderForm?: CustomerOrderForm;
+  text?: string;
+  fallbackUrl?: string;
+  filenamePrefix?: string;
+}
+
+/**
+ * Share product using the Web Share API with the real image File on supported devices.
+ * If file sharing is unsupported, blocked by CORS, or cancelled, executes the fallback WhatsApp URL.
+ */
+export const shareWithImageFileOrFallback = async (
+  options: ShareOptions
+): Promise<{ sharedWithFile: boolean; cancelled?: boolean }> => {
+  const {
+    product,
+    selectedImageUrl,
+    imageIndex = 0,
+    actionType = 'inquiry',
+    orderForm,
+    filenamePrefix = 'product',
+  } = options;
+
+  const targetImageUrl = getProductDirectImageUrl(product, selectedImageUrl);
+  const productUrl = getIndividualProductUrl(product, imageIndex);
+
+  // Compute fallback URL and share text based on action type if not explicitly supplied
+  let fallbackUrl = options.fallbackUrl;
+  let shareText = options.text;
+
+  if (!fallbackUrl || !shareText) {
+    if (actionType === 'buy' && orderForm) {
+      if (!fallbackUrl) {
+        fallbackUrl = createBuyOrderWhatsAppUrl(product, orderForm, selectedImageUrl, imageIndex);
+      }
+      if (!shareText) {
+        shareText = [
+          `*ORDER REQUEST - VAIDEHI IMITATION*`,
+          `Item: ${product.name} (Code: ${product.code})`,
+          `Price: ${formatINR(product.selling_price)}`,
+          `Customer: ${orderForm.name} (Phone: ${orderForm.phone})`,
+          `Delivery Address: ${orderForm.address}, ${orderForm.city} - ${orderForm.pincode}`,
+          orderForm.notes ? `Notes: ${orderForm.notes}` : null,
+          `Product Link: ${productUrl}`,
+        ].filter(Boolean).join('\n');
+      }
+    } else if (actionType === 'share') {
+      if (!fallbackUrl) {
+        fallbackUrl = createProductShareWhatsAppUrl(product, selectedImageUrl, imageIndex);
+      }
+      if (!shareText) {
+        shareText = [
+          `*${product.name}* (${product.code})`,
+          `Vaidehi Imitation Jewellery - Dhasa Junction`,
+          `Price: ${product.selling_price > 0 ? formatINR(product.selling_price) : 'On Inquiry'}`,
+          `View details: ${productUrl}`,
+        ].join('\n');
+      }
+    } else {
+      // Default: 'inquiry'
+      if (!fallbackUrl) {
+        fallbackUrl = createProductInquiryUrl(product, selectedImageUrl, imageIndex);
+      }
+      if (!shareText) {
+        shareText = [
+          `*PRODUCT INQUIRY - VAIDEHI IMITATION*`,
+          `Item: ${product.name} (Code: ${product.code})`,
+          `Price: ${product.selling_price > 0 ? formatINR(product.selling_price) : 'On Inquiry'}`,
+          `Link: ${productUrl}`,
+          `Hello Akshaysinh Kher, please share availability and delivery time for this piece.`,
+        ].join('\n');
+      }
+    }
+  }
+
+  // 1. Check if Web Share API with files is available in this browser
+  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare && targetImageUrl) {
+    try {
+      const file = await fetchImageAsFile(targetImageUrl, `${filenamePrefix}-${product.code}`);
+
+      if (file && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `${product.name} | Vaidehi Imitation`,
+          text: shareText,
+          files: [file],
+        });
+        return { sharedWithFile: true };
+      }
+    } catch (err: any) {
+      // User tapped "Cancel" in native share sheet: do not trigger accidental fallback redirect
+      if (err?.name === 'AbortError') {
+        return { sharedWithFile: false, cancelled: true };
+      }
+      console.warn('Web Share with file failed, invoking WhatsApp fallback link:', err);
+    }
+  }
+
+  // 2. Graceful Fallback: Open WhatsApp directly with full prefilled text, price, image link, and product URL
+  if (typeof window !== 'undefined' && fallbackUrl) {
+    window.open(fallbackUrl, '_blank');
+  }
+  return { sharedWithFile: false };
 };
