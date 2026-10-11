@@ -118,11 +118,11 @@ export const ReviewsSection: React.FC = () => {
             Customer Reviews
           </h2>
           <p className="text-xs sm:text-sm text-[#6E6267] mt-1 font-light leading-relaxed">
-            Read approved customer feedback and demonstration samples below, or share your own experience.
+            Read customer feedback and reviews below, or share your own experience.
           </p>
         </div>
 
-        {/* 1. Website Review Display: 100 Clearly Labelled Sample Reviews (Above the form) */}
+        {/* 1. Website Review Display */}
         <SampleReviewsSection />
 
         {/* 2. Customer Review Submission Form (EXACTLY preserved design, fields, rating selector & submit button) */}

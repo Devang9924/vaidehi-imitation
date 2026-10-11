@@ -514,8 +514,15 @@ export const AdminProductForm: React.FC<AdminProductFormProps> = ({
         {images.length > 0 ? (
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 pt-2">
             {images.map((imgUrl, idx) => (
-              <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-[#F0C9D3] bg-gray-50">
-                <img src={imgUrl} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover" />
+              <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-[#F0C9D3] bg-white flex items-center justify-center p-1">
+                <img
+                  src={imgUrl}
+                  alt={`Photo ${idx + 1}`}
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/images/sample-necklace-1.jpg';
+                  }}
+                />
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(idx)}

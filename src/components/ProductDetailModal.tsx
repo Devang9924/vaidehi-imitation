@@ -33,6 +33,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   }, [product?.id, initialImageIndex]);
 
+  // Synchronize browser URL with active image selection so direct links and refresh preserve photo choice
+  useEffect(() => {
+    if (product && typeof window !== 'undefined') {
+      const imgParam = activeImageIndex > 0 ? `&img=${activeImageIndex}` : '';
+      const newUrl = `${window.location.pathname}?product=${encodeURIComponent(product.code)}${imgParam}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  }, [product, activeImageIndex]);
+
   if (!product) return null;
 
   const images = product.images && product.images.length > 0
@@ -108,26 +117,31 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <div className="md:w-1/2 bg-[#FFF8F9] flex flex-col p-4 sm:p-6 border-b md:border-b-0 md:border-r border-[#F5D8E0]">
           
           {/* Main Large Image */}
-          <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-white border border-[#F0C9D3] shadow-xs flex items-center justify-center">
+          <div className="relative aspect-square w-full max-h-[48vh] md:max-h-none rounded-2xl overflow-hidden bg-white border border-[#F0C9D3] shadow-xs flex items-center justify-center p-3 sm:p-4">
             <img
               src={images[activeImageIndex]}
               alt={`${product.name} large view`}
-              className="w-full h-full object-cover object-center"
+              className="w-full h-full max-h-full max-w-full object-contain object-center transition-all duration-300"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/images/sample-necklace-1.jpg';
+              }}
             />
 
             {/* Navigation arrows if more than 1 image */}
             {images.length > 1 && (
               <>
                 <button
+                  type="button"
                   onClick={handlePrev}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 hover:bg-white text-gray-800 flex items-center justify-center shadow-md transition-all"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 hover:bg-white text-gray-800 flex items-center justify-center shadow-md transition-all cursor-pointer"
                   aria-label="Previous image"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
+                  type="button"
                   onClick={handleNext}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 hover:bg-white text-gray-800 flex items-center justify-center shadow-md transition-all"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/85 hover:bg-white text-gray-800 flex items-center justify-center shadow-md transition-all cursor-pointer"
                   aria-label="Next image"
                 >
                   <ChevronRight className="w-5 h-5" />
@@ -149,14 +163,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {images.map((imgUrl, index) => (
                 <button
                   key={index}
+                  type="button"
                   onClick={() => setActiveImageIndex(index)}
-                  className={`relative shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${
+                  className={`relative shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 bg-white flex items-center justify-center p-1 transition-all cursor-pointer ${
                     index === activeImageIndex
-                      ? 'border-[#B76E79] ring-2 ring-[#B76E79]/30 scale-102'
-                      : 'border-[#F0C9D3] opacity-75 hover:opacity-100'
+                      ? 'border-[#B76E79] ring-2 ring-[#B76E79]/30 scale-105'
+                      : 'border-[#F0C9D3] opacity-80 hover:opacity-100'
                   }`}
+                  aria-label={`View photo ${index + 1}`}
                 >
-                  <img src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                  <img
+                    src={imgUrl}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="w-full h-full object-contain object-center"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/images/sample-necklace-1.jpg';
+                    }}
+                  />
                 </button>
               ))}
             </div>

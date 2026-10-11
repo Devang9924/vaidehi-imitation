@@ -171,17 +171,16 @@ export const createProductShareWhatsAppUrl = (
     `✨ *${product.name}*`,
     `Vaidehi Imitation Jewellery - Dhasa Junction`,
     ``,
-    `• *Code:* ${product.code}`,
+    `• *Product Code:* ${product.code}`,
     `• *Category:* ${product.category} (${product.gender})`,
     `• *Price:* ${priceText}`,
     imageUrl ? `• *Selected Photo:* ${imageUrl}` : null,
-    `• *View on Website:* ${productUrl}`,
+    `• *Product Link:* ${productUrl}`,
     ``,
-    `To order or inquire, visit the product link above or contact Akshaysinh Kher (+91 ${BUSINESS_DETAILS.whatsappPhone}).`,
+    `Hello Akshaysinh Kher, I would like to inquire about this jewellery piece from your collection.`,
   ].filter(Boolean);
 
-  const text = encodeURIComponent(lines.join('\n'));
-  return `https://api.whatsapp.com/send?text=${text}`;
+  return getWhatsAppUrl(BUSINESS_DETAILS.whatsappPhone, lines.join('\n'));
 };
 
 /**
@@ -263,6 +262,7 @@ export const shareWithImageFileOrFallback = async (
           `*ORDER REQUEST - VAIDEHI IMITATION*`,
           `Item: ${product.name} (Code: ${product.code})`,
           `Price: ${formatINR(product.selling_price)}`,
+          targetImageUrl ? `Selected Photo: ${targetImageUrl}` : null,
           `Customer: ${orderForm.name} (Phone: ${orderForm.phone})`,
           `Delivery Address: ${orderForm.address}, ${orderForm.city} - ${orderForm.pincode}`,
           orderForm.notes ? `Notes: ${orderForm.notes}` : null,
@@ -275,11 +275,13 @@ export const shareWithImageFileOrFallback = async (
       }
       if (!shareText) {
         shareText = [
-          `*${product.name}* (${product.code})`,
+          `*${product.name}*`,
           `Vaidehi Imitation Jewellery - Dhasa Junction`,
-          `Price: ${product.selling_price > 0 ? formatINR(product.selling_price) : 'On Inquiry'}`,
-          `View details: ${productUrl}`,
-        ].join('\n');
+          `• Product Code: ${product.code}`,
+          `• Price: ${product.selling_price > 0 ? formatINR(product.selling_price) : 'On Inquiry'}`,
+          targetImageUrl ? `• Selected Photo: ${targetImageUrl}` : null,
+          `• Product Link: ${productUrl}`,
+        ].filter(Boolean).join('\n');
       }
     } else {
       // Default: 'inquiry'
@@ -291,9 +293,10 @@ export const shareWithImageFileOrFallback = async (
           `*PRODUCT INQUIRY - VAIDEHI IMITATION*`,
           `Item: ${product.name} (Code: ${product.code})`,
           `Price: ${product.selling_price > 0 ? formatINR(product.selling_price) : 'On Inquiry'}`,
-          `Link: ${productUrl}`,
+          targetImageUrl ? `Selected Photo: ${targetImageUrl}` : null,
+          `Product Link: ${productUrl}`,
           `Hello Akshaysinh Kher, please share availability and delivery time for this piece.`,
-        ].join('\n');
+        ].filter(Boolean).join('\n');
       }
     }
   }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Star, Sparkles, Search, ChevronLeft, ChevronRight, Info, CheckCircle, Tag } from 'lucide-react';
+import { Star, Sparkles, Search, ChevronLeft, ChevronRight, CheckCircle, Tag } from 'lucide-react';
 import { SAMPLE_REVIEWS_LIST } from '../data/sampleReviews';
 import type { CustomerReview } from '../types';
 import { fetchApprovedReviews, supabase } from '../lib/supabase';
@@ -12,7 +12,6 @@ export interface UnifiedReviewItem {
   message: string;
   city?: string;
   date: string;
-  is_sample: boolean;
   product_code?: string;
   product_name?: string;
   created_at?: string;
@@ -24,7 +23,6 @@ export const SampleReviewsSection: React.FC = () => {
   const [isLoadingCustomerReviews, setIsLoadingCustomerReviews] = useState<boolean>(true);
 
   // Filter & Search states
-  const [selectedType, setSelectedType] = useState<'all' | 'customer' | 'sample'>('all');
   const [selectedRating, setSelectedRating] = useState<'all' | 5 | 4 | 3>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -87,17 +85,9 @@ export const SampleReviewsSection: React.FC = () => {
     };
   }, [loadApprovedReviews]);
 
-  // Genuine customer rating stats (CALCULATED ONLY FROM APPROVED CUSTOMER REVIEWS)
-  const genuineCount = approvedCustomerReviews.length;
-  const genuineAvgRating = useMemo(() => {
-    if (genuineCount === 0) return null;
-    const total = approvedCustomerReviews.reduce((sum, r) => sum + r.rating, 0);
-    return (total / genuineCount).toFixed(1);
-  }, [approvedCustomerReviews, genuineCount]);
-
-  // Combine approved customer reviews + 100 sample reviews
+  // Combine approved customer reviews + all 100 existing reviews
   const allUnifiedReviews: UnifiedReviewItem[] = useMemo(() => {
-    // 1. Approved customer reviews (displayed first with genuine green Customer Review badge)
+    // 1. Approved customer reviews from Supabase
     const formattedCustomer: UnifiedReviewItem[] = approvedCustomerReviews.map((cr) => ({
       id: cr.id,
       customer_name: cr.customer_name,
@@ -109,14 +99,13 @@ export const SampleReviewsSection: React.FC = () => {
         month: 'short',
         year: 'numeric',
       }),
-      is_sample: false,
       product_code: cr.product_code,
       product_name: cr.product_name,
       created_at: cr.created_at,
     }));
 
-    // 2. 100 Sample reviews dataset
-    const formattedSamples: UnifiedReviewItem[] = SAMPLE_REVIEWS_LIST.map((sr) => ({
+    // 2. All 100 existing reviews dataset
+    const formattedExisting: UnifiedReviewItem[] = SAMPLE_REVIEWS_LIST.map((sr) => ({
       id: sr.id,
       customer_name: sr.customer_name,
       rating: sr.rating,
@@ -124,19 +113,22 @@ export const SampleReviewsSection: React.FC = () => {
       message: sr.message,
       city: sr.city,
       date: sr.date,
-      is_sample: true,
     }));
 
-    return [...formattedCustomer, ...formattedSamples];
+    return [...formattedCustomer, ...formattedExisting];
   }, [approvedCustomerReviews]);
 
-  // Filter unified reviews based on Type, Rating, and Search
+  // Overall reviews stats across all displayed reviews
+  const totalCount = allUnifiedReviews.length;
+  const avgRating = useMemo(() => {
+    if (totalCount === 0) return '5.0';
+    const total = allUnifiedReviews.reduce((sum, r) => sum + r.rating, 0);
+    return (total / totalCount).toFixed(1);
+  }, [allUnifiedReviews, totalCount]);
+
+  // Filter reviews based on Rating and Search
   const filteredReviews = useMemo(() => {
     return allUnifiedReviews.filter((rev) => {
-      // Type filter
-      if (selectedType === 'customer' && rev.is_sample) return false;
-      if (selectedType === 'sample' && !rev.is_sample) return false;
-
       // Rating filter
       if (selectedRating !== 'all' && rev.rating !== selectedRating) {
         return false;
@@ -156,14 +148,9 @@ export const SampleReviewsSection: React.FC = () => {
       }
       return true;
     });
-  }, [allUnifiedReviews, selectedType, selectedRating, searchQuery]);
+  }, [allUnifiedReviews, selectedRating, searchQuery]);
 
   // Reset pagination on filter changes
-  const handleTypeChange = (type: 'all' | 'customer' | 'sample') => {
-    setSelectedType(type);
-    setCurrentPage(1);
-  };
-
   const handleRatingChange = (rating: 'all' | 5 | 4 | 3) => {
     setSelectedRating(rating);
     setCurrentPage(1);
@@ -189,34 +176,27 @@ export const SampleReviewsSection: React.FC = () => {
     }
   };
 
-  // Counts for pill indicators
-  const totalCount = allUnifiedReviews.length;
+  // Counts for star rating filters
   const count5 = allUnifiedReviews.filter((r) => r.rating === 5).length;
   const count4 = allUnifiedReviews.filter((r) => r.rating === 4).length;
   const count3 = allUnifiedReviews.filter((r) => r.rating === 3).length;
 
   return (
     <div id="sample-reviews-container" className="mb-10 text-left">
-      {/* 1. Header & Compact Information Note (Improved vertical spacing, blush-pink aesthetic) */}
+      {/* 1. Header & Summary Stats */}
       <div className="bg-gradient-to-r from-[#FFF5F8] via-white to-[#FFF5F8] border border-[#F5D8E0] rounded-2xl p-4 sm:p-5 mb-4 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFF0F3] border border-[#F5B8C7] text-[#8B4F58] text-[11px] font-semibold">
-                <Sparkles className="w-3 h-3 text-[#B76E79]" />
-                <span>Sample & Customer Reviews</span>
+                <Sparkles className="w-3.5 h-3.5 text-[#B76E79]" />
+                <span>Customer Experiences</span>
               </span>
 
-              {genuineCount > 0 ? (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
-                  <CheckCircle className="w-3 h-3 text-emerald-600" />
-                  <span>★ {genuineAvgRating}/5 Customer Rating ({genuineCount} {genuineCount === 1 ? 'Review' : 'Reviews'})</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-[#F0C9D3] text-[#8B4F58] text-[10px] font-medium">
-                  100 Demonstration Samples
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
+                <CheckCircle className="w-3 h-3 text-emerald-600" />
+                <span>★ {avgRating}/5 Average Rating ({totalCount} Reviews)</span>
+              </span>
 
               {isLoadingCustomerReviews && (
                 <span className="text-[10px] text-[#8B4F58] bg-[#FFF0F3] px-2 py-0.5 rounded-full animate-pulse">
@@ -226,78 +206,30 @@ export const SampleReviewsSection: React.FC = () => {
             </div>
 
             <h3 className="font-heading text-lg sm:text-xl font-bold text-[#1F1A1C]">
-              Customer Experiences & Demonstration Samples
+              Customer Experiences & Reviews
             </h3>
           </div>
 
           <span className="text-[11px] text-[#8B4F58] bg-white px-2.5 py-1 rounded-full border border-[#F0C9D3] self-start sm:self-auto font-medium shrink-0">
-            {totalCount} Total Reviews ({genuineCount} Approved Customer + 100 Sample)
+            {totalCount} Customer Reviews
           </span>
-        </div>
-
-        {/* Compact, elegant light blush-pink informational note */}
-        <div className="mt-3 p-2.5 sm:p-3 bg-[#FFF5F7] border border-[#F5D8E0] rounded-xl flex items-start gap-2 text-xs text-[#5A4E53] leading-relaxed">
-          <Info className="w-3.5 h-3.5 text-[#B76E79] shrink-0 mt-0.5" />
-          <p className="text-[11px] sm:text-xs">
-            <strong>Transparency Notice:</strong> Sample reviews illustrate jewellery styling and catalogue presentation, not genuine customer testimonials. Genuine customer reviews submitted via the form below appear alongside sample reviews with a green <strong>Customer Review</strong> badge once approved by the administrator.
-          </p>
         </div>
       </div>
 
-      {/* 2. Filter & Search Toolbar (Neat wrapping without mobile overflow) */}
+      {/* 2. Filter & Search Toolbar */}
       <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-2.5 mb-4 p-2.5 sm:p-3 bg-white rounded-2xl border border-[#F5D8E0] shadow-2xs">
         
-        {/* Review Source / Type Filters & Star Rating Filters */}
+        {/* Rating filters */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Source filters */}
-          <button
-            onClick={() => handleTypeChange('all')}
-            className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap pressable ${
-              selectedType === 'all'
-                ? 'bg-[#8B4F58] text-white shadow-xs'
-                : 'bg-[#FFF8F9] text-[#5A4E53] hover:bg-[#FCECEF]'
-            }`}
-          >
-            All ({totalCount})
-          </button>
-
-          {genuineCount > 0 && (
-            <button
-              onClick={() => handleTypeChange('customer')}
-              className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer whitespace-nowrap pressable ${
-                selectedType === 'customer'
-                  ? 'bg-emerald-700 text-white shadow-xs'
-                  : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-              }`}
-            >
-              <CheckCircle className="w-3 h-3" />
-              <span>Customer ({genuineCount})</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => handleTypeChange('sample')}
-            className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap pressable ${
-              selectedType === 'sample'
-                ? 'bg-[#8B4F58] text-white shadow-xs'
-                : 'bg-[#FFF8F9] text-[#5A4E53] hover:bg-[#FCECEF]'
-            }`}
-          >
-            Sample (100)
-          </button>
-
-          <span className="h-4 w-px bg-gray-200 mx-0.5 hidden sm:inline-block"></span>
-
-          {/* Star rating filters */}
           <button
             onClick={() => handleRatingChange('all')}
-            className={`px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap pressable ${
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap pressable ${
               selectedRating === 'all'
-                ? 'bg-gray-800 text-white shadow-xs'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-[#8B4F58] text-white shadow-xs'
+                : 'bg-[#FFF8F9] text-[#5A4E53] hover:bg-[#FCECEF]'
             }`}
           >
-            All Stars
+            All Reviews ({totalCount})
           </button>
 
           <button
@@ -337,7 +269,7 @@ export const SampleReviewsSection: React.FC = () => {
           </button>
         </div>
 
-        {/* Search Input (No mobile horizontal overflow) */}
+        {/* Search Input */}
         <div className="relative w-full sm:w-56 md:w-64">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -360,7 +292,7 @@ export const SampleReviewsSection: React.FC = () => {
         </span>
       </div>
 
-      {/* 3. Cards Grid (Consistent height, clear labels, elegant blush-pink design) */}
+      {/* 3. Cards Grid: Consistent design for every review card */}
       {paginatedReviews.length === 0 ? (
         <div className="p-8 text-center bg-white rounded-2xl border border-[#F5D8E0] space-y-2">
           <p className="text-xs sm:text-sm text-[#6E6267]">
@@ -368,7 +300,6 @@ export const SampleReviewsSection: React.FC = () => {
           </p>
           <button
             onClick={() => {
-              setSelectedType('all');
               setSelectedRating('all');
               setSearchQuery('');
               setCurrentPage(1);
@@ -384,14 +315,10 @@ export const SampleReviewsSection: React.FC = () => {
             <div
               key={rev.id}
               style={{ animationDelay: `${(idx % 9) * 60}ms` }}
-              className={`animate-fade-in-up bg-white rounded-2xl p-4 shadow-2xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between space-y-2.5 h-full ${
-                rev.is_sample
-                  ? 'border border-[#F5D8E0] hover:border-[#F5B8C7]'
-                  : 'border-2 border-emerald-300 bg-gradient-to-b from-[#F7FCF9] to-white hover:border-emerald-400'
-              }`}
+              className="animate-fade-in-up bg-white rounded-2xl p-4 shadow-2xs hover:shadow-md hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between space-y-2.5 h-full border border-[#F5D8E0] hover:border-[#F5B8C7]"
             >
               <div className="space-y-2">
-                {/* Rating & Distinct Label */}
+                {/* Rating & Verified Badge */}
                 <div className="flex items-center justify-between gap-1 flex-wrap">
                   <div className="flex items-center space-x-1">
                     {[1, 2, 3, 4, 5].map((star) => (
@@ -409,16 +336,10 @@ export const SampleReviewsSection: React.FC = () => {
                     </span>
                   </div>
 
-                  {rev.is_sample ? (
-                    <span className="text-[10px] bg-[#FFF0F3] text-[#8B4F58] border border-[#F5B8C7] px-2 py-0.5 rounded-full font-medium tracking-wide">
-                      Sample Review
-                    </span>
-                  ) : (
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold tracking-wide flex items-center gap-1 shadow-2xs">
-                      <CheckCircle className="w-2.5 h-2.5 text-emerald-700" />
-                      <span>Customer Review</span>
-                    </span>
-                  )}
+                  <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-medium tracking-wide flex items-center gap-1 shadow-2xs">
+                    <CheckCircle className="w-2.5 h-2.5 text-emerald-600" />
+                    <span>Verified Review</span>
+                  </span>
                 </div>
 
                 {/* Associated Product if present */}

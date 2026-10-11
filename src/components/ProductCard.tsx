@@ -42,12 +42,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       className="group relative bg-white rounded-2xl sm:rounded-3xl border border-[#F5D8E0] overflow-hidden rose-gold-card-shadow rose-gold-card-hover cursor-pointer flex flex-col justify-between transition-all animate-fade-in-up"
     >
       {/* Top Image Showcase */}
-      <div className="relative aspect-square w-full bg-[#FFF5F8] overflow-hidden">
+      <div className="relative aspect-square w-full bg-[#FFF5F8] overflow-hidden flex items-center justify-center p-2.5">
         <img
           src={images[activeImageIndex]}
           alt={`${product.name} - ${product.code} at Vaidehi Imitation`}
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full max-h-full max-w-full object-contain object-center group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = '/images/sample-necklace-1.jpg';
+          }}
         />
 
         {/* Multi-image indicators if more than 1 image */}

@@ -146,8 +146,9 @@ export const App: React.FC = () => {
           setSelectedProductDetails(found);
           if (imgParam) {
             const parsedIdx = parseInt(imgParam, 10);
-            if (!isNaN(parsedIdx) && parsedIdx >= 0 && parsedIdx < (found.images?.length || 1)) {
-              setSelectedProductImageIndex(parsedIdx);
+            if (!isNaN(parsedIdx) && parsedIdx >= 0) {
+              const maxIdx = Math.max(0, (found.images?.length || 1) - 1);
+              setSelectedProductImageIndex(Math.min(parsedIdx, maxIdx));
             } else {
               setSelectedProductImageIndex(0);
             }

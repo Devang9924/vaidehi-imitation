@@ -118,11 +118,16 @@ export const AdminProductList: React.FC<AdminProductListProps> = ({
               className="bg-white rounded-2xl border border-[#F5D8E0] p-3.5 sm:p-4 shadow-2xs hover:shadow-xs transition-shadow flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={product.images[0] || '/images/sample-necklace-1.jpg'}
-                  alt={product.name}
-                  className="w-14 h-14 rounded-xl object-cover border border-[#F0C9D3] shrink-0"
-                />
+                <div className="w-14 h-14 rounded-xl bg-white border border-[#F0C9D3] shrink-0 p-0.5 flex items-center justify-center overflow-hidden">
+                  <img
+                    src={product.images[0] || '/images/sample-necklace-1.jpg'}
+                    alt={product.name}
+                    className="w-full h-full object-contain object-center"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/images/sample-necklace-1.jpg';
+                    }}
+                  />
+                </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono text-[11px] font-bold text-[#8B4F58]">

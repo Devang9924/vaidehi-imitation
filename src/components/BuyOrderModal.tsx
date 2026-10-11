@@ -118,11 +118,16 @@ export const BuyOrderModal: React.FC<BuyOrderModalProps> = ({
 
             {/* Selected Product Summary Box */}
             <div className="bg-[#FFF8F9] rounded-2xl p-3.5 border border-[#F5D8E0] flex items-center gap-3.5 mb-5">
-              <img
-                src={activeImageUrl}
-                alt={product.name}
-                className="w-16 h-16 rounded-xl object-cover border border-[#F0C9D3] shrink-0"
-              />
+              <div className="w-16 h-16 rounded-xl bg-white border border-[#F0C9D3] shrink-0 p-1 flex items-center justify-center overflow-hidden">
+                <img
+                  src={activeImageUrl}
+                  alt={product.name}
+                  className="w-full h-full object-contain object-center"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/images/sample-necklace-1.jpg';
+                  }}
+                />
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="block text-[10px] font-mono font-bold text-[#8B4F58]">
