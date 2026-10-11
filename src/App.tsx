@@ -27,9 +27,15 @@ import { AdminPage } from './components/admin/AdminPage';
 
 function getIsAdminRoute(): boolean {
   if (typeof window === 'undefined') return false;
-  const path = window.location.pathname.toLowerCase();
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
   const hash = window.location.hash.toLowerCase();
-  return path === '/admin' || path.startsWith('/admin/') || hash === '#/admin' || hash === '#admin';
+  return (
+    path === '/admin' ||
+    path.startsWith('/admin/') ||
+    hash === '#/admin' ||
+    hash === '#admin' ||
+    hash.startsWith('#/admin/')
+  );
 }
 
 export const App: React.FC = () => {
