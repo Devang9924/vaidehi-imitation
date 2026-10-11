@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { X, MessageCircle, ShoppingBag, Share2, Check, Tag, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Product } from '../types';
-import { formatINR, getDiscountPercentage, createProductInquiryUrl } from '../lib/whatsapp';
+import {
+  formatINR,
+  getDiscountPercentage,
+  createProductInquiryUrl,
+  createProductShareWhatsAppUrl,
+  getIndividualProductUrl,
+} from '../lib/whatsapp';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -25,13 +31,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const discount = getDiscountPercentage(product.original_price, product.selling_price);
   const inquiryUrl = createProductInquiryUrl(product);
+  const shareWhatsAppUrl = createProductShareWhatsAppUrl(product);
+  const productPageUrl = getIndividualProductUrl(product);
 
-  const handleCopyLink = () => {
-    const url = `${window.location.origin}/#product-${product.code}`;
-    navigator.clipboard.writeText(url).then(() => {
+  const handleCopyLink = async () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(productPageUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
-    });
+    }
   };
 
   const handlePrev = () => {
@@ -136,15 +144,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </span>
               </div>
 
-              {/* Share button */}
-              <button
-                onClick={handleCopyLink}
-                className="inline-flex items-center gap-1.5 text-xs text-[#8B4F58] hover:text-[#9E5863] bg-[#FFF8F9] px-2.5 py-1 rounded-full border border-[#F0C9D3]"
-                title="Copy product link"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
-                <span>{copiedLink ? 'Link Copied!' : 'Share'}</span>
-              </button>
+              {/* Share actions */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <a
+                  href={shareWhatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-200 transition-colors cursor-pointer pressable"
+                  title="Share product details & image via WhatsApp"
+                >
+                  <MessageCircle className="w-3 h-3 text-emerald-600" />
+                  <span>Share on WhatsApp</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#8B4F58] hover:text-[#9E5863] bg-[#FFF8F9] px-2.5 py-1 rounded-full border border-[#F0C9D3] transition-colors cursor-pointer pressable"
+                  title="Copy individual product link"
+                >
+                  {copiedLink ? <Check className="w-3 h-3 text-emerald-600" /> : <Share2 className="w-3 h-3" />}
+                  <span>{copiedLink ? 'Link Copied!' : 'Copy Link'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Product Title */}

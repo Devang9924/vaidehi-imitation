@@ -31,12 +31,47 @@ export const getWhatsAppUrl = (phone: string, text: string): string => {
 };
 
 /**
+ * Resolve direct public image URL for a product (absolute URL for WhatsApp & sharing)
+ */
+export const getProductDirectImageUrl = (product: Product): string | null => {
+  if (!product.images || product.images.length === 0) return null;
+  const first = product.images[0]?.trim();
+  if (!first) return null;
+
+  // Already a full public URL (e.g. Supabase Storage public bucket)
+  if (first.startsWith('http://') || first.startsWith('https://')) {
+    return first;
+  }
+
+  // Relative path (e.g. /images/sample-necklace-1.jpg) - resolve to full public URL
+  const origin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://vaidehi-imitation.vercel.app';
+  const cleanPath = first.startsWith('/') ? first : `/${first}`;
+  return `${origin}${cleanPath}`;
+};
+
+/**
+ * Resolve individual direct product page URL
+ */
+export const getIndividualProductUrl = (product: Product): string => {
+  const origin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://vaidehi-imitation.vercel.app';
+  const code = encodeURIComponent(product.code.trim());
+  return `${origin}/?product=${code}`;
+};
+
+/**
  * Generate Product Inquiry WhatsApp link
  */
 export const createProductInquiryUrl = (product: Product): string => {
-  const productUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/#product-${product.code}`
-    : `https://vaidehi-imitation.vercel.app/#product-${product.code}`;
+  const productUrl = getIndividualProductUrl(product);
+  const imageUrl = getProductDirectImageUrl(product);
+
+  const priceText = product.selling_price > 0
+    ? `${formatINR(product.selling_price)}${product.original_price > product.selling_price ? ` (MRP: ${formatINR(product.original_price)})` : ''}`
+    : 'Price on Inquiry';
 
   const message = [
     `✨ *PRODUCT INQUIRY - VAIDEHI IMITATION*`,
@@ -46,12 +81,15 @@ export const createProductInquiryUrl = (product: Product): string => {
     `• *Product:* ${product.name}`,
     `• *Product Code:* ${product.code}`,
     `• *Category:* ${product.category} (${product.gender})`,
-    `• *Price:* ${formatINR(product.selling_price)} (MRP: ${formatINR(product.original_price)})`,
-    `• *Catalogue Link:* ${productUrl}`,
+    `• *Price:* ${priceText}`,
+    imageUrl ? `• *Product Image:* ${imageUrl}` : null,
+    `• *Product Page:* ${productUrl}`,
     ``,
     `Could you please share availability, close-up video/photos, and delivery time to my pincode?`,
     `Thank you!`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   return getWhatsAppUrl(BUSINESS_DETAILS.whatsappPhone, message);
 };
@@ -60,9 +98,12 @@ export const createProductInquiryUrl = (product: Product): string => {
  * Generate Buy Order WhatsApp link after customer completes the order form
  */
 export const createBuyOrderWhatsAppUrl = (product: Product, order: CustomerOrderForm): string => {
-  const productUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/#product-${product.code}`
-    : `https://vaidehi-imitation.vercel.app/#product-${product.code}`;
+  const productUrl = getIndividualProductUrl(product);
+  const imageUrl = getProductDirectImageUrl(product);
+
+  const priceText = product.selling_price > 0
+    ? `${formatINR(product.selling_price)}${product.original_price > product.selling_price ? ` (MRP: ${formatINR(product.original_price)})` : ''}`
+    : 'Price on Inquiry';
 
   const message = [
     `🛍️ *NEW JEWELLERY ORDER REQUEST*`,
@@ -73,15 +114,17 @@ export const createBuyOrderWhatsAppUrl = (product: Product, order: CustomerOrder
     `• *Product:* ${product.name}`,
     `• *Product Code:* ${product.code}`,
     `• *Category:* ${product.category} (${product.gender})`,
-    `• *Price:* ${formatINR(product.selling_price)}`,
-    `• *Link:* ${productUrl}`,
+    `• *Price:* ${priceText}`,
+    imageUrl ? `• *Product Image:* ${imageUrl}` : null,
+    `• *Product Page:* ${productUrl}`,
     ``,
     `*DELIVERY & CUSTOMER DETAILS:*`,
     `• *Customer Name:* ${order.name.trim()}`,
     `• *Mobile Number:* ${order.phone.trim()}`,
     `• *Full Address:* ${order.address.trim()}`,
     `• *PIN Code:* ${order.pincode.trim()}`,
-    order.notes ? `• *Special Note / Instructions:* ${order.notes.trim()}` : null,
+    order.city?.trim() ? `• *City / Town:* ${order.city.trim()}` : null,
+    order.notes?.trim() ? `• *Special Note / Instructions:* ${order.notes.trim()}` : null,
     ``,
     `---`,
     `*ORDER NOTICE:*`,
@@ -91,6 +134,34 @@ export const createBuyOrderWhatsAppUrl = (product: Product, order: CustomerOrder
     .join('\n');
 
   return getWhatsAppUrl(BUSINESS_DETAILS.whatsappPhone, message);
+};
+
+/**
+ * Generate Product Share WhatsApp link (share with contacts/family)
+ */
+export const createProductShareWhatsAppUrl = (product: Product): string => {
+  const productUrl = getIndividualProductUrl(product);
+  const imageUrl = getProductDirectImageUrl(product);
+
+  const priceText = product.selling_price > 0
+    ? `${formatINR(product.selling_price)}${product.original_price > product.selling_price ? ` (MRP: ${formatINR(product.original_price)})` : ''}`
+    : 'Price on Inquiry';
+
+  const lines = [
+    `✨ *${product.name}*`,
+    `Vaidehi Imitation Jewellery - Dhasa Junction`,
+    ``,
+    `• *Code:* ${product.code}`,
+    `• *Category:* ${product.category} (${product.gender})`,
+    `• *Price:* ${priceText}`,
+    imageUrl ? `• *Product Photo:* ${imageUrl}` : null,
+    `• *View on Website:* ${productUrl}`,
+    ``,
+    `To order or inquire, visit the product link above or contact Akshaysinh Kher (+91 ${BUSINESS_DETAILS.whatsappPhone}).`,
+  ].filter(Boolean);
+
+  const text = encodeURIComponent(lines.join('\n'));
+  return `https://api.whatsapp.com/send?text=${text}`;
 };
 
 /**

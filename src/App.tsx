@@ -99,6 +99,60 @@ export const App: React.FC = () => {
     void refreshProducts();
   }, [refreshProducts]);
 
+  // Deep-linking: Automatically open individual product details modal if URL has ?product=CODE or #product-CODE
+  useEffect(() => {
+    if (allProducts.length === 0 || isAdminRoute) return;
+
+    const syncProductFromUrl = () => {
+      if (typeof window === 'undefined') return;
+
+      const params = new URLSearchParams(window.location.search);
+      const queryParam = params.get('product') || params.get('code') || params.get('p') || params.get('id');
+
+      let target = queryParam;
+      if (!target && window.location.hash.startsWith('#product-')) {
+        target = decodeURIComponent(window.location.hash.replace('#product-', ''));
+      }
+
+      if (target) {
+        const clean = target.trim().toLowerCase();
+        const found = allProducts.find((p) => {
+          const codeMatch = p.code.toLowerCase().trim() === clean;
+          const idMatch = p.id.toLowerCase() === clean;
+          const strippedCodeMatch = p.code.toLowerCase().replace(/[\s-_]+/g, '') === clean.replace(/[\s-_]+/g, '');
+          return codeMatch || idMatch || strippedCodeMatch;
+        });
+
+        if (found) {
+          setSelectedProductDetails(found);
+        }
+      }
+    };
+
+    syncProductFromUrl();
+    window.addEventListener('popstate', syncProductFromUrl);
+    window.addEventListener('hashchange', syncProductFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncProductFromUrl);
+      window.removeEventListener('hashchange', syncProductFromUrl);
+    };
+  }, [allProducts, isAdminRoute]);
+
+  const handleOpenProductDetails = (product: Product) => {
+    setSelectedProductDetails(product);
+    if (typeof window !== 'undefined') {
+      const newUrl = `${window.location.pathname}?product=${encodeURIComponent(product.code)}`;
+      window.history.replaceState(null, '', newUrl);
+    }
+  };
+
+  const handleCloseProductDetails = () => {
+    setSelectedProductDetails(null);
+    if (typeof window !== 'undefined' && window.location.search.includes('product=')) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
   // Toggle sample demo products visibility
   const handleToggleSampleProducts = () => {
     const nextVal = !showSampleProducts;
@@ -225,7 +279,7 @@ export const App: React.FC = () => {
           error={error}
           showSampleProducts={showSampleProducts}
           onToggleSampleProducts={handleToggleSampleProducts}
-          onViewDetails={(product) => setSelectedProductDetails(product)}
+          onViewDetails={handleOpenProductDetails}
           onBuyNow={(product) => setBuyProduct(product)}
           onResetFilters={handleResetFilters}
         />
@@ -259,9 +313,9 @@ export const App: React.FC = () => {
       {/* Product Detail Modal */}
       <ProductDetailModal
         product={selectedProductDetails}
-        onClose={() => setSelectedProductDetails(null)}
+        onClose={handleCloseProductDetails}
         onBuyNow={(product) => {
-          setSelectedProductDetails(null);
+          handleCloseProductDetails();
           setBuyProduct(product);
         }}
       />
