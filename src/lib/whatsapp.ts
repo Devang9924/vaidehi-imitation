@@ -110,11 +110,16 @@ export const createProductInquiryUrl = (
 export const createBuyOrderWhatsAppUrl = (
   product: Product,
   order: CustomerOrderForm,
-  selectedImageUrl?: string | null,
+  selectedImageUrlOrIndex?: string | number | null,
   imageIndex?: number
 ): string => {
-  const productUrl = getIndividualProductUrl(product, imageIndex);
-  const imageUrl = getProductDirectImageUrl(product, selectedImageUrl);
+  const actualIndex = typeof selectedImageUrlOrIndex === 'number'
+    ? selectedImageUrlOrIndex
+    : typeof imageIndex === 'number'
+      ? imageIndex
+      : undefined;
+
+  const productUrl = getIndividualProductUrl(product, actualIndex);
 
   const priceText = product.selling_price > 0
     ? `${formatINR(product.selling_price)}${product.original_price > product.selling_price ? ` (MRP: ${formatINR(product.original_price)})` : ''}`
@@ -130,7 +135,6 @@ export const createBuyOrderWhatsAppUrl = (
     `• *Product Code:* ${product.code}`,
     `• *Category:* ${product.category} (${product.gender})`,
     `• *Price:* ${priceText}`,
-    imageUrl ? `• *Selected Photo:* ${imageUrl}` : null,
     `• *Product Page:* ${productUrl}`,
     ``,
     `*DELIVERY & CUSTOMER DETAILS:*`,
@@ -261,12 +265,12 @@ export const shareWithImageFileOrFallback = async (
         shareText = [
           `*ORDER REQUEST - VAIDEHI IMITATION*`,
           `Item: ${product.name} (Code: ${product.code})`,
+          `Category: ${product.category} (${product.gender})`,
           `Price: ${formatINR(product.selling_price)}`,
-          targetImageUrl ? `Selected Photo: ${targetImageUrl}` : null,
+          `Product Link: ${productUrl}`,
           `Customer: ${orderForm.name} (Phone: ${orderForm.phone})`,
           `Delivery Address: ${orderForm.address}, ${orderForm.city} - ${orderForm.pincode}`,
           orderForm.notes ? `Notes: ${orderForm.notes}` : null,
-          `Product Link: ${productUrl}`,
         ].filter(Boolean).join('\n');
       }
     } else if (actionType === 'share') {
