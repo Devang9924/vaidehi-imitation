@@ -22,7 +22,11 @@
   }
 
   /* Prevent awkward touch highlight taps on mobile */
-  button, a, input, select, textarea {
+  button,
+  a,
+  input,
+  select,
+  textarea {
     -webkit-tap-highlight-color: transparent;
   }
 }
@@ -51,6 +55,7 @@
 .text-rose-gold-gradient {
   background: linear-gradient(135deg, #B76E79 0%, #9E5863 50%, #7A2E3D 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -76,13 +81,14 @@
   0% {
     background-position: -200% 0;
   }
+
   100% {
     background-position: 200% 0;
   }
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0) 100%);
   background-size: 200% 100%;
   animation: shimmer 2.5s infinite;
 }
@@ -96,6 +102,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -106,6 +113,7 @@
     opacity: 0;
     transform: translate3d(0, 20px, 0);
   }
+
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -117,6 +125,7 @@
     opacity: 0;
     transform: translate3d(0, -16px, 0);
   }
+
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -128,6 +137,7 @@
     opacity: 0;
     transform: translate3d(-24px, 0, 0);
   }
+
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -139,6 +149,7 @@
     opacity: 0;
     transform: translate3d(24px, 0, 0);
   }
+
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -150,6 +161,7 @@
     opacity: 0;
     transform: scale3d(0.95, 0.95, 1);
   }
+
   to {
     opacity: 1;
     transform: scale3d(1, 1, 1);
@@ -157,18 +169,24 @@
 }
 
 @keyframes floatSlow {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-6px);
   }
 }
 
 @keyframes pulseGlow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 15px rgba(212, 163, 115, 0.25);
   }
+
   50% {
     box-shadow: 0 0 28px rgba(212, 163, 115, 0.5);
   }
@@ -178,6 +196,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -224,24 +243,31 @@
 .delay-75 {
   animation-delay: 75ms;
 }
+
 .delay-100 {
   animation-delay: 100ms;
 }
+
 .delay-150 {
   animation-delay: 150ms;
 }
+
 .delay-200 {
   animation-delay: 200ms;
 }
+
 .delay-250 {
   animation-delay: 250ms;
 }
+
 .delay-300 {
   animation-delay: 300ms;
 }
+
 .delay-400 {
   animation-delay: 400ms;
 }
+
 .delay-500 {
   animation-delay: 500ms;
 }
@@ -250,6 +276,7 @@
 .pressable {
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s ease, background-color 0.15s ease;
 }
+
 .pressable:active {
   transform: scale(0.97);
 }
@@ -262,6 +289,7 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -272,7 +300,10 @@
    Ensures that users requesting reduced motion experience instantaneous transitions
 ============================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
+
+  *,
+  ::before,
+  ::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
