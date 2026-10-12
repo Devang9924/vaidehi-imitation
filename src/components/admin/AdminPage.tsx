@@ -8,8 +8,10 @@ import {
   LogOut,
   ArrowLeft,
   Copy,
+  Settings,
+  PackageCheck,
 } from 'lucide-react';
-import type { Product } from '../../types';
+import type { Product, StoreSettings } from '../../types';
 import { isSupabaseConfigured, signOutAdmin, getCurrentAdminUser } from '../../lib/supabase';
 import { addProductToStore, updateProductInStore, deleteProductFromStore } from '../../lib/productStore';
 import { AdminLogin } from './AdminLogin';
@@ -17,6 +19,10 @@ import { AdminProductList } from './AdminProductList';
 import { AdminProductForm } from './AdminProductForm';
 import { AdminCategoryManager } from './AdminCategoryManager';
 import { AdminReviewsList } from './AdminReviewsList';
+import { AdminOrderSettings } from './AdminOrderSettings';
+import { AdminOrdersList } from './AdminOrdersList';
+
+export type AdminTab = 'list' | 'form' | 'orders' | 'settings' | 'categories' | 'reviews' | 'guide';
 
 interface AdminPageProps {
   products: Product[];
@@ -24,6 +30,8 @@ interface AdminPageProps {
   onNavigateHome: () => void;
   showSampleProducts?: boolean;
   onToggleSampleProducts?: () => void;
+  storeSettings?: StoreSettings;
+  onSettingsUpdated?: (newSettings: StoreSettings) => void;
 }
 
 export const AdminPage: React.FC<AdminPageProps> = ({
@@ -32,10 +40,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   onNavigateHome,
   showSampleProducts,
   onToggleSampleProducts,
+  storeSettings,
+  onSettingsUpdated,
 }) => {
   const isSupabase = isSupabaseConfigured();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'list' | 'form' | 'categories' | 'reviews' | 'guide'>('list');
+  const [currentTab, setCurrentTab] = useState<AdminTab>('list');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
@@ -207,6 +217,36 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <button
               onClick={() => {
                 setEditingProduct(null);
+                setCurrentTab('orders');
+              }}
+              className={`px-3.5 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                currentTab === 'orders'
+                  ? 'bg-[#FFF0F3] text-[#8B4F58] border border-[#F5B8C7]'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <PackageCheck className="w-4 h-4" />
+              <span>Customer Orders</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setEditingProduct(null);
+                setCurrentTab('settings');
+              }}
+              className={`px-3.5 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                currentTab === 'settings'
+                  ? 'bg-[#FFF0F3] text-[#8B4F58] border border-[#F5B8C7]'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              <span>Order & Payment Settings</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setEditingProduct(null);
                 setCurrentTab('categories');
               }}
               className={`px-3.5 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
@@ -249,8 +289,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       {/* Main Content View */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         {!isAuthenticated ? (
-          <div className="py-12 flex justify-center">
-            <div className="w-full max-w-md bg-white rounded-3xl border border-[#F5D8E0] shadow-sm p-2 sm:p-4">
+          <div className="max-w-md mx-auto pt-8">
+            <div className="bg-white rounded-3xl border border-[#F5D8E0] shadow-sm p-6 sm:p-8">
               <AdminLogin
                 isSupabase={isSupabase}
                 onLoginSuccess={() => setIsAuthenticated(true)}
@@ -281,6 +321,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 </div>
               )}
             </div>
+          </div>
+        ) : currentTab === 'orders' ? (
+          <div className="bg-white rounded-3xl border border-[#F5D8E0] shadow-2xs max-w-6xl mx-auto overflow-hidden">
+            <AdminOrdersList />
+          </div>
+        ) : currentTab === 'settings' ? (
+          <div className="bg-white rounded-3xl border border-[#F5D8E0] shadow-2xs max-w-4xl mx-auto p-4 sm:p-6">
+            <AdminOrderSettings
+              initialSettings={storeSettings}
+              onSettingsSaved={onSettingsUpdated}
+            />
           </div>
         ) : currentTab === 'form' ? (
           <div className="bg-white rounded-3xl border border-[#F5D8E0] shadow-2xs p-4 sm:p-6 max-w-4xl mx-auto">
@@ -336,7 +387,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <span>Execute SQL Migration</span>
                 </div>
                 <p className="pl-7 text-xs text-[#6E6267]">
-                  Open <strong>SQL Editor</strong> in Supabase, paste all statements from <code>supabase-schema.sql</code>, and click <strong>Run</strong>. This creates the <code>products</code> and <code>reviews</code> tables with Row Level Security (RLS) policies and storage buckets.
+                  Open <strong>SQL Editor</strong> in Supabase, paste all statements from <code>supabase-schema.sql</code>, and click <strong>Run</strong>. This creates the <code>products</code>, <code>reviews</code>, <code>store_settings</code>, and <code>orders</code> tables with Row Level Security (RLS) policies.
                 </p>
               </div>
 

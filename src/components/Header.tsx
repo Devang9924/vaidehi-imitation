@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Phone, MessageCircle, Search, Menu, X } from 'lucide-react';
+import { Phone, MessageCircle, Search, Menu, X, ShoppingBag } from 'lucide-react';
 import { BUSINESS_DETAILS } from '../data/business';
-import type { GenderFilter } from '../types';
+import type { GenderFilter, OrderMode } from '../types';
 import { createGeneralInquiryUrl } from '../lib/whatsapp';
 
 interface HeaderProps {
@@ -9,6 +9,10 @@ interface HeaderProps {
   setGenderFilter: (gender: GenderFilter) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  orderMode?: OrderMode;
+  cartItemCount?: number;
+  onOpenCart?: () => void;
+  onNavigateHome?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,6 +20,10 @@ export const Header: React.FC<HeaderProps> = ({
   setGenderFilter,
   searchQuery,
   setSearchQuery,
+  orderMode = 'whatsapp',
+  cartItemCount = 0,
+  onOpenCart,
+  onNavigateHome,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -28,8 +36,17 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const handleBrandClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onNavigateHome) {
+      onNavigateHome();
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
-    <header className="bg-white border-b border-[#F5D8E0] shadow-xs">
+    <header className="bg-white border-b border-[#F5D8E0] shadow-xs sticky top-0 z-30">
       {/* Main Brand & Navigation Header */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-18">
@@ -38,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center min-w-0">
             <a
               href="#"
+              onClick={handleBrandClick}
               className="group flex items-center gap-2.5 sm:gap-3 text-left focus:outline-hidden"
               aria-label="Vaidehi Imitation Home"
             >
@@ -133,16 +151,41 @@ export const Header: React.FC<HeaderProps> = ({
               <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            {/* Direct WhatsApp Action */}
-            <a
-              href={createGeneralInquiryUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium shadow-2xs hover:shadow-sm transition-all pressable"
-            >
-              <MessageCircle className="w-3.5 h-3.5 fill-current" />
-              <span>WhatsApp Order</span>
-            </a>
+            {/* Shopping Cart Button (Shown in Online Checkout Mode) */}
+            {orderMode === 'online_checkout' && (
+              <button
+                type="button"
+                onClick={onOpenCart}
+                className="relative inline-flex items-center gap-1.5 bg-[#FFF0F3] hover:bg-[#FCECEF] text-[#8B4F58] border border-[#F5B8C7] px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all pressable cursor-pointer shadow-2xs"
+                title="View Shopping Bag"
+                aria-label={`Shopping bag with ${cartItemCount} items`}
+              >
+                <ShoppingBag className="w-4 h-4 shrink-0 text-[#8B4F58]" />
+                <span className="hidden min-[420px]:inline">Bag</span>
+                {cartItemCount > 0 ? (
+                  <span className="w-5 h-5 rounded-full bg-[#8B4F58] text-white text-[10px] sm:text-xs font-bold flex items-center justify-center shrink-0 shadow-2xs">
+                    {cartItemCount > 99 ? '99+' : cartItemCount}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-[#8B4F58]/70 hidden min-[480px]:inline">
+                    (0)
+                  </span>
+                )}
+              </button>
+            )}
+
+            {/* Direct WhatsApp Action (Shown in WhatsApp Ordering Mode) */}
+            {orderMode === 'whatsapp' && (
+              <a
+                href={createGeneralInquiryUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden sm:inline-flex items-center space-x-1.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-3.5 py-1.5 rounded-full text-xs sm:text-sm font-medium shadow-2xs hover:shadow-sm transition-all pressable"
+              >
+                <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                <span>WhatsApp Order</span>
+              </a>
+            )}
 
             {/* Mobile Hamburger Button */}
             <button
@@ -197,6 +240,26 @@ export const Header: React.FC<HeaderProps> = ({
             aria-hidden="true"
           />
           <div className="relative z-40 lg:hidden bg-white/98 backdrop-blur-md border-b border-[#F5D8E0] px-4 pt-3 pb-6 space-y-3 shadow-xl animate-fade-in-down">
+            {/* If in Online Checkout Mode, provide Bag link right at the top */}
+            {orderMode === 'online_checkout' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onOpenCart) onOpenCart();
+                }}
+                className="w-full min-h-[44px] py-2 px-3 rounded-xl bg-[#FFF0F3] text-[#8B4F58] border border-[#F5B8C7] text-xs sm:text-sm font-bold flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 text-[#8B4F58]" />
+                  <span>View Shopping Bag</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-[#8B4F58] text-white text-xs font-bold">
+                  {cartItemCount}
+                </span>
+              </button>
+            )}
+
             <div className="grid grid-cols-2 gap-2 pt-1 pb-2">
               <button
                 onClick={() => {

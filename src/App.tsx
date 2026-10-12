@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Product, GenderFilter, ProductCategory, SortOption } from './types';
+import type { Product, GenderFilter, ProductCategory, SortOption, CartItem } from './types';
 import {
   loadAllCatalogueProducts,
   getShowSamplesPreference,
@@ -7,6 +7,14 @@ import {
 } from './lib/productStore';
 import { SAMPLE_PRODUCTS } from './data/sampleProducts';
 import { getDiscountPercentage } from './lib/whatsapp';
+import { BUSINESS_DETAILS } from './data/business';
+import { getActiveStoreSettings, DEFAULT_STORE_SETTINGS, type StoreSettings } from './lib/storeSettings';
+import {
+  getCartItems,
+  addToCart,
+  validateCartAgainstProducts,
+  subscribeToCart,
+} from './lib/cartStore';
 
 // UI Components
 import { Header } from './components/Header';
@@ -21,27 +29,129 @@ import { Footer } from './components/Footer';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { PageEntranceLoader } from './components/PageEntranceLoader';
 
-// Modals & Admin Route
+// Modals, Cart & Admin Route
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { BuyOrderModal } from './components/BuyOrderModal';
+import { CartDrawer } from './components/cart/CartDrawer';
+import { CheckoutPage } from './components/checkout/CheckoutPage';
+import { OrderConfirmationPage } from './components/checkout/OrderConfirmationPage';
 import { AdminPage } from './components/admin/AdminPage';
 
-function getIsAdminRoute(): boolean {
-  if (typeof window === 'undefined') return false;
+// Policy Pages
+import {
+  PrivacyPolicyPage,
+  TermsConditionsPage,
+  ShippingPolicyPage,
+  CancellationRefundPolicyPage,
+  PaymentPolicyPage,
+  ContactUsPage,
+} from './components/policies';
+
+export type ActiveRoute =
+  | 'store'
+  | 'admin'
+  | 'checkout'
+  | 'order-confirmation'
+  | 'privacy-policy'
+  | 'terms-and-conditions'
+  | 'shipping-policy'
+  | 'cancellation-refund-policy'
+  | 'payment-policy'
+  | 'contact-us';
+
+function getActiveRoute(): ActiveRoute {
+  if (typeof window === 'undefined') return 'store';
   const path = window.location.pathname.toLowerCase().replace(/\/+$/, '');
   const hash = window.location.hash.toLowerCase();
-  return (
+
+  // 1. Admin route
+  if (
     path === '/admin' ||
     path.startsWith('/admin/') ||
     hash === '#/admin' ||
     hash === '#admin' ||
     hash.startsWith('#/admin/')
-  );
+  ) {
+    return 'admin';
+  }
+
+  // 2. Checkout & Order Confirmation routes
+  if (path === '/checkout' || hash === '#/checkout' || hash === '#checkout') {
+    return 'checkout';
+  }
+  if (
+    path === '/order-confirmation' ||
+    path.startsWith('/order-confirmation') ||
+    hash === '#/order-confirmation' ||
+    hash.startsWith('#/order-confirmation')
+  ) {
+    return 'order-confirmation';
+  }
+
+  // 3. Policy routes (supports both path and hash)
+  if (path === '/privacy-policy' || hash === '#/privacy-policy' || hash === '#privacy-policy') {
+    return 'privacy-policy';
+  }
+  if (
+    path === '/terms-and-conditions' ||
+    path === '/terms' ||
+    hash === '#/terms-and-conditions' ||
+    hash === '#terms-and-conditions' ||
+    hash === '#/terms'
+  ) {
+    return 'terms-and-conditions';
+  }
+  if (
+    path === '/shipping-policy' ||
+    path === '/shipping' ||
+    hash === '#/shipping-policy' ||
+    hash === '#shipping-policy' ||
+    hash === '#/shipping'
+  ) {
+    return 'shipping-policy';
+  }
+  if (
+    path === '/cancellation-refund-policy' ||
+    path === '/refund-policy' ||
+    path === '/cancellation-policy' ||
+    hash === '#/cancellation-refund-policy' ||
+    hash === '#cancellation-refund-policy' ||
+    hash === '#/refund-policy'
+  ) {
+    return 'cancellation-refund-policy';
+  }
+  if (
+    path === '/payment-policy' ||
+    path === '/payment' ||
+    hash === '#/payment-policy' ||
+    hash === '#payment-policy' ||
+    hash === '#/payment'
+  ) {
+    return 'payment-policy';
+  }
+  if (
+    path === '/contact-us' ||
+    path === '/contact' ||
+    hash === '#/contact-us' ||
+    hash === '#contact-us' ||
+    hash === '#/contact'
+  ) {
+    return 'contact-us';
+  }
+
+  return 'store';
 }
 
 export const App: React.FC = () => {
-  // Routing state ('store' | 'admin')
-  const [isAdminRoute, setIsAdminRoute] = useState<boolean>(getIsAdminRoute);
+  // Routing state
+  const [activeRoute, setActiveRoute] = useState<ActiveRoute>(getActiveRoute);
+
+  // Store settings (Order mode & payment controls)
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
+
+  // Cart state
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => getCartItems());
+  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
 
   // Store products state
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -62,10 +172,38 @@ export const App: React.FC = () => {
   const [buyProductSelectedImage, setBuyProductSelectedImage] = useState<string | null>(null);
   const [buyProductSelectedImageIndex, setBuyProductSelectedImageIndex] = useState<number>(0);
 
+  // Fetch store settings on mount
+  useEffect(() => {
+    let isMounted = true;
+    void getActiveStoreSettings().then((settings: StoreSettings) => {
+      if (isMounted) {
+        setStoreSettings(settings);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Subscribe to shopping cart updates
+  useEffect(() => {
+    const unsubscribe = subscribeToCart((updatedItems: CartItem[]) => {
+      setCartItems(updatedItems);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Validate cart against products once catalogue loaded
+  useEffect(() => {
+    if (allProducts.length > 0) {
+      validateCartAgainstProducts(allProducts);
+    }
+  }, [allProducts]);
+
   // Listen to browser location changes (history / hash)
   useEffect(() => {
     const handleLocationChange = () => {
-      setIsAdminRoute(getIsAdminRoute());
+      setActiveRoute(getActiveRoute());
     };
 
     window.addEventListener('popstate', handleLocationChange);
@@ -76,9 +214,45 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Update dynamic page document title
+  useEffect(() => {
+    switch (activeRoute) {
+      case 'checkout':
+        document.title = `Checkout & Payment | ${BUSINESS_DETAILS.brandName}`;
+        break;
+      case 'order-confirmation':
+        document.title = `Order Confirmed | ${BUSINESS_DETAILS.brandName}`;
+        break;
+      case 'privacy-policy':
+        document.title = `Privacy Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        break;
+      case 'terms-and-conditions':
+        document.title = `Terms & Conditions | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        break;
+      case 'shipping-policy':
+        document.title = `Shipping & Delivery Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        break;
+      case 'cancellation-refund-policy':
+        document.title = `Cancellation & Refund Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        break;
+      case 'payment-policy':
+        document.title = `Payment Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        break;
+      case 'contact-us':
+        document.title = `Contact Us & Showroom Support | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        break;
+      case 'admin':
+        document.title = `Admin Dashboard | ${BUSINESS_DETAILS.brandName}`;
+        break;
+      default:
+        document.title = `${BUSINESS_DETAILS.brandName} | Imitation Jewellery Dhasa Junction`;
+        break;
+    }
+  }, [activeRoute]);
+
   const navigateTo = (path: string) => {
     window.history.pushState(null, '', path);
-    setIsAdminRoute(getIsAdminRoute());
+    setActiveRoute(getActiveRoute());
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -103,10 +277,9 @@ export const App: React.FC = () => {
     void refreshProducts();
   }, [refreshProducts]);
 
-  // Deep-linking: Automatically open individual product details modal if URL has ?product=CODE or #product-CODE
-  // Re-evaluates when allProducts finishes loading from Supabase
+  // Deep-linking: Automatically open individual product details modal if URL has ?product=CODE
   useEffect(() => {
-    if (isAdminRoute) return;
+    if (activeRoute !== 'store') return;
 
     const syncProductFromUrl = () => {
       if (typeof window === 'undefined') return;
@@ -124,23 +297,13 @@ export const App: React.FC = () => {
         const clean = target.trim().toLowerCase();
         const stripped = clean.replace(/[\s-_]+/g, '');
 
-        // Search among Supabase products first; fallback to SAMPLE_PRODUCTS
         const pool = allProducts.length > 0 ? allProducts : SAMPLE_PRODUCTS;
-        let found = pool.find((p) => {
+        const found = pool.find((p) => {
           const codeMatch = p.code.toLowerCase().trim() === clean;
           const idMatch = p.id.toLowerCase() === clean;
           const strippedCodeMatch = p.code.toLowerCase().replace(/[\s-_]+/g, '') === stripped;
           return codeMatch || idMatch || strippedCodeMatch;
         });
-
-        if (!found && allProducts.length > 0) {
-          found = SAMPLE_PRODUCTS.find((p) => {
-            const codeMatch = p.code.toLowerCase().trim() === clean;
-            const idMatch = p.id.toLowerCase() === clean;
-            const strippedCodeMatch = p.code.toLowerCase().replace(/[\s-_]+/g, '') === stripped;
-            return codeMatch || idMatch || strippedCodeMatch;
-          });
-        }
 
         if (found) {
           setSelectedProductDetails(found);
@@ -166,7 +329,7 @@ export const App: React.FC = () => {
       window.removeEventListener('popstate', syncProductFromUrl);
       window.removeEventListener('hashchange', syncProductFromUrl);
     };
-  }, [allProducts, isAdminRoute]);
+  }, [allProducts, activeRoute]);
 
   const handleOpenProductDetails = (product: Product, initialImageIndex?: number) => {
     setSelectedProductDetails(product);
@@ -187,10 +350,24 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleOpenBuy = (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => {
-    setBuyProduct(product);
-    setBuyProductSelectedImage(selectedImageUrl || (product.images && product.images[0]) || null);
-    setBuyProductSelectedImageIndex(selectedImageIndex ?? 0);
+  // Add product to cart handler
+  const handleAddToCart = (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => {
+    addToCart(product, selectedImageIndex ?? 0, 1, selectedImageUrl);
+    setIsCartOpen(true);
+  };
+
+  // Unified Buy Now handler: Respects active orderMode
+  const handleBuyNow = (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => {
+    if (storeSettings.order_mode === 'online_checkout') {
+      // In Online Checkout Mode, add to cart and navigate directly to checkout page
+      addToCart(product, selectedImageIndex ?? 0, 1, selectedImageUrl);
+      navigateTo('/checkout');
+    } else {
+      // In WhatsApp Mode, open the existing WhatsApp BuyOrderModal
+      setBuyProduct(product);
+      setBuyProductSelectedImage(selectedImageUrl || (product.images && product.images[0]) || null);
+      setBuyProductSelectedImageIndex(selectedImageIndex ?? 0);
+    }
   };
 
   const handleCloseBuy = () => {
@@ -217,7 +394,7 @@ export const App: React.FC = () => {
   // Filtered & sorted products computation
   const filteredProducts = useMemo(() => {
     return allProducts.filter((product) => {
-      // 1. Gender filter: Female includes Female & Unisex; Male includes Male & Unisex
+      // 1. Gender filter
       if (genderFilter === 'Male') {
         if (product.gender !== 'Male' && product.gender !== 'Unisex') return false;
       } else if (genderFilter === 'Female') {
@@ -259,7 +436,6 @@ export const App: React.FC = () => {
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
       }
-      // 'featured': preserve natural order
       return 0;
     });
   }, [allProducts, genderFilter, selectedCategory, searchQuery, sortOption]);
@@ -269,8 +445,12 @@ export const App: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // If on dedicated /admin route, show the full Admin Page
-  if (isAdminRoute) {
+  const totalCartCount = useMemo(() => {
+    return cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  }, [cartItems]);
+
+  // Dedicated /admin route
+  if (activeRoute === 'admin') {
     return (
       <AdminPage
         products={allProducts}
@@ -278,23 +458,73 @@ export const App: React.FC = () => {
         onNavigateHome={() => navigateTo('/')}
         showSampleProducts={showSampleProducts}
         onToggleSampleProducts={handleToggleSampleProducts}
+        storeSettings={storeSettings}
+        onSettingsUpdated={(newSettings) => setStoreSettings(newSettings)}
       />
     );
   }
 
-  // Otherwise, render the customer-facing storefront
+  // Dedicated Checkout Route
+  if (activeRoute === 'checkout') {
+    return (
+      <CheckoutPage
+        items={cartItems}
+        settings={storeSettings}
+        onNavigate={navigateTo}
+        onOrderSuccess={(orderNumber) => {
+          navigateTo(`/order-confirmation?order=${encodeURIComponent(orderNumber)}`);
+        }}
+        onBackToShopping={() => navigateTo('/')}
+      />
+    );
+  }
+
+  // Dedicated Order Confirmation Route
+  if (activeRoute === 'order-confirmation') {
+    return (
+      <OrderConfirmationPage
+        onNavigate={navigateTo}
+      />
+    );
+  }
+
+  // Dedicated Policy Routes
+  if (activeRoute === 'privacy-policy') {
+    return <PrivacyPolicyPage onNavigate={navigateTo} />;
+  }
+  if (activeRoute === 'terms-and-conditions') {
+    return <TermsConditionsPage onNavigate={navigateTo} />;
+  }
+  if (activeRoute === 'shipping-policy') {
+    return <ShippingPolicyPage onNavigate={navigateTo} />;
+  }
+  if (activeRoute === 'cancellation-refund-policy') {
+    return <CancellationRefundPolicyPage onNavigate={navigateTo} />;
+  }
+  if (activeRoute === 'payment-policy') {
+    return <PaymentPolicyPage onNavigate={navigateTo} />;
+  }
+  if (activeRoute === 'contact-us') {
+    return <ContactUsPage onNavigate={navigateTo} />;
+  }
+
+  // Customer-facing storefront
   return (
     <div className="min-h-screen bg-[#FFF8F9] text-[#1F1A1C] flex flex-col font-sans-clean antialiased overflow-x-hidden w-full relative">
       
       {/* Page Refresh & Initial Entrance Luxury Animation */}
       <PageEntranceLoader />
 
-      {/* 1. Header with navigation, brand, search, call, and WhatsApp (No Admin button) */}
+      {/* 1. Header with navigation, brand, search, call, and Cart/WhatsApp */}
       <Header
         genderFilter={genderFilter}
         setGenderFilter={setGenderFilter}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        orderMode={storeSettings.order_mode}
+        cartItemCount={totalCartCount}
+        onOpenCart={() => setIsCartOpen(true)}
+        onNavigateHome={() => navigateTo('/')}
       />
 
       {/* Main Content Area */}
@@ -326,8 +556,10 @@ export const App: React.FC = () => {
           showSampleProducts={showSampleProducts}
           onToggleSampleProducts={handleToggleSampleProducts}
           onViewDetails={handleOpenProductDetails}
-          onBuyNow={handleOpenBuy}
+          onBuyNow={handleBuyNow}
           onResetFilters={handleResetFilters}
+          orderMode={storeSettings.order_mode}
+          onAddToCart={handleAddToCart}
         />
 
         {/* 5. Instagram Highlight Banner */}
@@ -336,7 +568,7 @@ export const App: React.FC = () => {
         {/* 6. About Business Section */}
         <AboutSection />
 
-        {/* 7. Customer Reviews Section (Form + Approved Reviews) */}
+        {/* 7. Customer Reviews Section */}
         <ReviewsSection />
 
         {/* 8. Showroom Location & Contact Details */}
@@ -344,30 +576,46 @@ export const App: React.FC = () => {
 
       </main>
 
-      {/* 9. Footer (No Admin button) */}
+      {/* 9. Footer with Policies & Category Navigation */}
       <Footer
         onSelectCategory={(cat) => setSelectedCategory(cat)}
+        onNavigate={navigateTo}
         showSampleProducts={showSampleProducts}
         onToggleSampleProducts={handleToggleSampleProducts}
       />
 
       {/* 10. Mobile Sticky Action Bar */}
-      <MobileBottomBar />
+      <MobileBottomBar
+        orderMode={storeSettings.order_mode}
+        cartItemCount={totalCartCount}
+        onOpenCart={() => setIsCartOpen(true)}
+      />
 
       {/* Customer Modals */}
       
+      {/* Slide-over Shopping Cart Drawer */}
+      <CartDrawer
+        isOpen={isCartOpen}
+        items={cartItems}
+        onClose={() => setIsCartOpen(false)}
+        onProceedToCheckout={() => {
+          setIsCartOpen(false);
+          navigateTo('/checkout');
+        }}
+        onContinueShopping={() => setIsCartOpen(false)}
+      />
+
       {/* Product Detail Modal */}
       <ProductDetailModal
         product={selectedProductDetails}
         initialImageIndex={selectedProductImageIndex}
         onClose={handleCloseProductDetails}
-        onBuyNow={(product, selectedImageUrl, selectedImageIndex) => {
-          handleCloseProductDetails();
-          handleOpenBuy(product, selectedImageUrl, selectedImageIndex);
-        }}
+        onBuyNow={handleBuyNow}
+        orderMode={storeSettings.order_mode}
+        onAddToCart={handleAddToCart}
       />
 
-      {/* Buy Order Modal (WhatsApp formulation) */}
+      {/* Buy Order Modal (WhatsApp formulation when in WhatsApp mode) */}
       <BuyOrderModal
         product={buyProduct}
         selectedImageUrl={buyProductSelectedImage}

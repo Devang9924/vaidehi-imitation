@@ -88,3 +88,97 @@ export interface ReviewFormData {
   product_name?: string;
 }
 
+// ==========================================
+// Order Modes & Store Settings
+// ==========================================
+
+export type OrderMode = 'whatsapp' | 'online_checkout';
+
+export interface StoreSettings {
+  order_mode: OrderMode;
+  razorpay_enabled: boolean;
+  cod_enabled: boolean;
+  updated_at?: string;
+}
+
+// ==========================================
+// Shopping Cart Models
+// ==========================================
+
+export interface CartItem {
+  id: string; // Composite key: `${product.id}_${selectedImageIndex}`
+  product: Product;
+  selectedImageIndex: number;
+  selectedImageUrl: string;
+  quantity: number;
+  unit_price: number;
+  selected?: boolean; // Selection state for selective checkout
+}
+
+// ==========================================
+// Orders & Payment Status Models
+// ==========================================
+
+export type OrderStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'processing'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled';
+
+export type PaymentStatus =
+  | 'pending'
+  | 'verified'
+  | 'failed'
+  | 'cod_pending'
+  | 'refunded';
+
+export type PaymentMethod = 'razorpay' | 'cod' | 'whatsapp';
+
+export type PaymentEnvironment = 'test' | 'live' | 'cod' | 'whatsapp' | 'unknown';
+
+export interface OrderItem {
+  product_id: string;
+  product_code: string;
+  product_name: string;
+  product_image: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
+export interface Order {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  shipping_address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  notes?: string;
+  items: OrderItem[];
+  subtotal: number;
+  shipping_fee: number;
+  total: number;
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  order_status: OrderStatus;
+  payment_env?: PaymentEnvironment;
+  razorpay_order_id?: string;
+  razorpay_payment_id?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CheckoutFormData {
+  name: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  notes?: string;
+  payment_method: PaymentMethod;
+}

@@ -1,4 +1,4 @@
-import type { Product, CustomerOrderForm } from '../types';
+import type { Product, CustomerOrderForm, Order } from '../types';
 import { BUSINESS_DETAILS } from '../data/business';
 
 /**
@@ -252,7 +252,6 @@ export const shareWithImageFileOrFallback = async (
   const targetImageUrl = getProductDirectImageUrl(product, selectedImageUrl);
   const productUrl = getIndividualProductUrl(product, imageIndex);
 
-  // Compute fallback URL and share text based on action type if not explicitly supplied
   let fallbackUrl = options.fallbackUrl;
   let shareText = options.text;
 
@@ -319,7 +318,6 @@ export const shareWithImageFileOrFallback = async (
         return { sharedWithFile: true };
       }
     } catch (err: any) {
-      // User tapped "Cancel" in native share sheet: do not trigger accidental fallback redirect
       if (err?.name === 'AbortError') {
         return { sharedWithFile: false, cancelled: true };
       }
@@ -327,9 +325,64 @@ export const shareWithImageFileOrFallback = async (
     }
   }
 
-  // 2. Graceful Fallback: Open WhatsApp directly with full prefilled text, price, image link, and product URL
+  // 2. Graceful Fallback: Open WhatsApp directly
   if (typeof window !== 'undefined' && fallbackUrl) {
     window.open(fallbackUrl, '_blank');
   }
   return { sharedWithFile: false };
+};
+
+/**
+ * Format a verified, structured customer order confirmation message.
+ *
+ * NOTE ON DELIVERY & AUTOMATION:
+ * 1. Standard wa.me hyperlinks DO NOT automatically transmit outbound messages without user intervention;
+ *    they merely open a pre-filled draft in the customer's WhatsApp client and require the user to press 'Send'.
+ * 2. Fully automated outbound push notifications require integration with the official WhatsApp Business Platform
+ *    (Cloud API) via Meta, which requires:
+ *    - An active Meta WhatsApp Business Account (WABA) with phone number verification.
+ *    - Approved message templates (HSM) for transactional utility notifications.
+ *    - A backend webhook/trigger with permanent System User access token.
+ * 3. Never send sensitive customer details to unauthorized third-party relays.
+ * 4. For Razorpay transactions: marks payment as Paid ONLY when verified server-side.
+ * 5. For COD transactions: marks payment as COD Pending (payable upon door delivery).
+ * 6. Delivery commitment: Uses "Expected delivery time will be confirmed by the showroom."
+ */
+export const formatWhatsAppOrderConfirmationMessage = (order: Order): string => {
+  let paymentStatusDisplay: string;
+  if (order.payment_method === 'razorpay') {
+    paymentStatusDisplay = order.payment_status === 'verified'
+      ? 'Paid (Verified Online via Razorpay)'
+      : 'Payment Pending Verification';
+  } else if (order.payment_method === 'cod') {
+    paymentStatusDisplay = 'Cash on Delivery (Pending - Payable upon delivery)';
+  } else {
+    paymentStatusDisplay = order.payment_status === 'verified'
+      ? 'Paid'
+      : 'Pending Confirmation';
+  }
+
+  const itemsSummary = (order.items || [])
+    .map((item) => `• ${item.product_name} (${item.product_code}) x${item.quantity} = ${formatINR(item.subtotal)}`)
+    .join('\n');
+
+  return [
+    `Thank you for your order! 💖`,
+    ``,
+    `Dear ${order.customer_name?.trim() || 'Customer'},`,
+    `Your order with Vaidehi Imitation has been confirmed successfully.`,
+    ``,
+    `Order ID: ${order.order_number}`,
+    ...(itemsSummary ? [``, `*Order Summary:*`, itemsSummary] : []),
+    ``,
+    `Order Total: ${formatINR(order.total)}`,
+    `Payment Status: ${paymentStatusDisplay}`,
+    `Expected Delivery: Expected delivery time will be confirmed by the showroom.`,
+    ``,
+    `Thank you for shopping with Vaidehi Imitation!`,
+    `Dhasa Junction, Gujarat`,
+    `Support: +91 96875 99517`,
+  ]
+    .filter(Boolean)
+    .join('\n');
 };

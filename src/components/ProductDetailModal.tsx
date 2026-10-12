@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, MessageCircle, ShoppingBag, Share2, Check, Tag, ShieldCheck, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import type { Product } from '../types';
+import { X, MessageCircle, ShoppingBag, Share2, Check, Tag, ShieldCheck, ChevronLeft, ChevronRight, Loader2, CreditCard } from 'lucide-react';
+import type { Product, OrderMode } from '../types';
 import {
   formatINR,
   getDiscountPercentage,
@@ -13,6 +13,8 @@ interface ProductDetailModalProps {
   initialImageIndex?: number;
   onClose: () => void;
   onBuyNow: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
+  orderMode?: OrderMode;
+  onAddToCart?: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
@@ -20,10 +22,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   initialImageIndex = 0,
   onClose,
   onBuyNow,
+  orderMode = 'whatsapp',
+  onAddToCart,
 }) => {
   const [activeImageIndex, setActiveImageIndex] = useState(initialImageIndex);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [addedToBag, setAddedToBag] = useState(false);
 
   useEffect(() => {
     if (initialImageIndex !== undefined) {
@@ -31,6 +36,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     } else {
       setActiveImageIndex(0);
     }
+    setAddedToBag(false);
   }, [product?.id, initialImageIndex]);
 
   // Synchronize browser URL with active image selection so direct links and refresh preserve photo choice
@@ -98,6 +104,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   };
 
+  const handleAddToBag = () => {
+    if (onAddToCart) {
+      onAddToCart(product, selectedImageUrl, activeImageIndex);
+      setAddedToBag(true);
+      setTimeout(() => setAddedToBag(false), 2500);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fade-in">
       <div
@@ -157,7 +171,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             )}
           </div>
 
-          {/* Thumbnail Strip (Supports unlimited images, horizontally scrollable) */}
+          {/* Thumbnail Strip */}
           {images.length > 1 && (
             <div className="mt-4 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
               {images.map((imgUrl, index) => (
@@ -190,7 +204,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Right Side: Product Details & WhatsApp Ordering */}
+        {/* Right Side: Product Details */}
         <div className="md:w-1/2 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto">
           
           <div className="space-y-4">
@@ -255,7 +269,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 )}
               </div>
               <p className="text-[11px] text-[#6E6267]">
-                Prices shown in INR. Inquire on WhatsApp for availability and sizing.
+                {orderMode === 'online_checkout'
+                  ? 'Official showroom price in INR. Secure online checkout supported.'
+                  : 'Prices shown in INR. Inquire on WhatsApp for availability and sizing.'}
               </p>
             </div>
 
@@ -277,7 +293,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
               <p className="text-[11px] text-[#6E6267] leading-relaxed">
                 • Location: Near Bank of Baroda, Dhasa Railway Station Road.<br />
-                • Inquiries and consultations handled directly by Akshaysinh Kher.
+                • Handled directly by Akshaysinh Kher at Vaidehi Imitation.
               </p>
             </div>
 
@@ -285,35 +301,79 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           {/* Bottom Call to Actions */}
           <div className="pt-6 mt-6 border-t border-[#F8E3E8] space-y-2.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* WhatsApp Inquiry */}
-              <button
-                type="button"
-                onClick={handleInquireWhatsApp}
-                disabled={isSharing}
-                className="py-3 px-4 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-center cursor-pointer pressable disabled:opacity-50"
-              >
-                {isSharing ? <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" /> : <MessageCircle className="w-4 h-4 text-emerald-600" />}
-                <span>Inquire on WhatsApp</span>
-              </button>
+            {orderMode === 'online_checkout' ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Add to Bag */}
+                  <button
+                    type="button"
+                    onClick={handleAddToBag}
+                    className="py-3 px-4 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-center cursor-pointer pressable"
+                  >
+                    {addedToBag ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-600" />
+                        <span className="text-emerald-700">Added to Bag!</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-4 h-4 text-[#8B4F58]" />
+                        <span>Add to Bag</span>
+                      </>
+                    )}
+                  </button>
 
-              {/* Buy Now (Order Modal) */}
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onBuyNow(product, selectedImageUrl, activeImageIndex);
-                }}
-                className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all text-center cursor-pointer pressable"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Buy Now (WhatsApp Form)</span>
-              </button>
-            </div>
+                  {/* Buy Now (Checkout Directly) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onBuyNow(product, selectedImageUrl, activeImageIndex);
+                    }}
+                    className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all text-center cursor-pointer pressable"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>Buy Now</span>
+                  </button>
+                </div>
 
-            <p className="text-center text-[10px] text-[#9E9096]">
-              No advance payment collected online. Orders are finalized with the store owner on WhatsApp.
-            </p>
+                <p className="text-center text-[10px] text-[#9E9096]">
+                  Order securely with cart & verified checkout. Delivery across India.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* WhatsApp Inquiry */}
+                  <button
+                    type="button"
+                    onClick={handleInquireWhatsApp}
+                    disabled={isSharing}
+                    className="py-3 px-4 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-center cursor-pointer pressable disabled:opacity-50"
+                  >
+                    {isSharing ? <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" /> : <MessageCircle className="w-4 h-4 text-emerald-600" />}
+                    <span>Inquire on WhatsApp</span>
+                  </button>
+
+                  {/* Buy Now (WhatsApp Order Modal) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onBuyNow(product, selectedImageUrl, activeImageIndex);
+                    }}
+                    className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all text-center cursor-pointer pressable"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Buy Now (WhatsApp Form)</span>
+                  </button>
+                </div>
+
+                <p className="text-center text-[10px] text-[#9E9096]">
+                  No advance payment collected online. Orders are finalized with the store owner on WhatsApp.
+                </p>
+              </>
+            )}
           </div>
 
         </div>

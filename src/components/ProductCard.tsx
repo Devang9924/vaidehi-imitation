@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { MessageCircle, ShoppingBag, Eye, Tag, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Product } from '../types';
+import { MessageCircle, ShoppingBag, Eye, Tag, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import type { Product, OrderMode } from '../types';
 import { formatINR, getDiscountPercentage, shareWithImageFileOrFallback } from '../lib/whatsapp';
 
 interface ProductCardProps {
@@ -8,6 +8,8 @@ interface ProductCardProps {
   index?: number;
   onViewDetails: (product: Product, selectedImageIndex?: number) => void;
   onBuyNow: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
+  orderMode?: OrderMode;
+  onAddToCart?: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -15,8 +17,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   index = 0,
   onViewDetails,
   onBuyNow,
+  orderMode = 'whatsapp',
+  onAddToCart,
 }) => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [justAdded, setJustAdded] = useState(false);
   const discount = getDiscountPercentage(product.original_price, product.selling_price);
 
   const images = product.images && product.images.length > 0
@@ -33,6 +38,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const handleNextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     setActiveImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleAddClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddToCart) {
+      onAddToCart(product, selectedImageUrl, activeImageIndex);
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 1800);
+    }
   };
 
   return (
@@ -157,40 +171,76 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </span>
           </div>
 
-          {/* Dual Action Buttons with pressable micro-interactions */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-            {/* Quick Inquiry on WhatsApp */}
-            <button
-              type="button"
-              onClick={async (e) => {
-                e.stopPropagation();
-                await shareWithImageFileOrFallback({
-                  product,
-                  selectedImageUrl,
-                  imageIndex: activeImageIndex,
-                  actionType: 'inquiry',
-                });
-              }}
-              className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 transition-all text-center pressable cursor-pointer"
-              title="Inquire on WhatsApp"
-            >
-              <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>Inquire</span>
-            </button>
+          {/* Dual Action Buttons */}
+          {orderMode === 'online_checkout' ? (
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+              {/* Add to Cart */}
+              <button
+                type="button"
+                onClick={handleAddClick}
+                className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 transition-all text-center pressable cursor-pointer"
+                title="Add to Shopping Bag"
+              >
+                {justAdded ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="text-emerald-700 font-bold">Added!</span>
+                  </>
+                ) : (
+                  <>
+                    <ShoppingBag className="w-3.5 h-3.5 text-[#8B4F58] shrink-0" />
+                    <span>Add to Bag</span>
+                  </>
+                )}
+              </button>
 
-            {/* Buy Now Button (Opens Order Form) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onBuyNow(product, selectedImageUrl, activeImageIndex);
-              }}
-              className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 shadow-2xs hover:shadow-sm transition-all text-center pressable cursor-pointer"
-            >
-              <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
-              <span>Buy Now</span>
-            </button>
-          </div>
+              {/* Buy Now (Direct to Checkout) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBuyNow(product, selectedImageUrl, activeImageIndex);
+                }}
+                className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 shadow-2xs hover:shadow-sm transition-all text-center pressable cursor-pointer"
+              >
+                <span>Buy Now</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+              {/* Quick Inquiry on WhatsApp */}
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  await shareWithImageFileOrFallback({
+                    product,
+                    selectedImageUrl,
+                    imageIndex: activeImageIndex,
+                    actionType: 'inquiry',
+                  });
+                }}
+                className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl border border-[#F0C9D3] bg-[#FFF8F9] hover:bg-[#FCECEF] text-[#8B4F58] text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 transition-all text-center pressable cursor-pointer"
+                title="Inquire on WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Inquire</span>
+              </button>
+
+              {/* Buy Now Button (Opens Order Form) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onBuyNow(product, selectedImageUrl, activeImageIndex);
+                }}
+                className="min-h-[38px] sm:min-h-[42px] py-2 px-1.5 min-[360px]:px-2.5 rounded-xl bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] hover:brightness-105 text-white text-[10px] min-[360px]:text-xs font-semibold flex items-center justify-center gap-1 shadow-2xs hover:shadow-sm transition-all text-center pressable cursor-pointer"
+              >
+                <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+                <span>Buy Now</span>
+              </button>
+            </div>
+          )}
         </div>
 
       </div>

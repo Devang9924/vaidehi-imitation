@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Product } from '../types';
+import type { Product, OrderMode } from '../types';
 import { ProductCard } from './ProductCard';
 import { Sparkles, MessageCircle, RefreshCw, AlertCircle, EyeOff } from 'lucide-react';
 import { createGeneralInquiryUrl } from '../lib/whatsapp';
@@ -14,6 +14,8 @@ interface ProductGridProps {
   onViewDetails: (product: Product, selectedImageIndex?: number) => void;
   onBuyNow: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
   onResetFilters: () => void;
+  orderMode?: OrderMode;
+  onAddToCart?: (product: Product, selectedImageUrl?: string, selectedImageIndex?: number) => void;
 }
 
 export const ProductGrid: React.FC<ProductGridProps> = ({
@@ -25,6 +27,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   onViewDetails,
   onBuyNow,
   onResetFilters,
+  orderMode = 'whatsapp',
+  onAddToCart,
 }) => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -139,6 +143,8 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
               index={index}
               onViewDetails={onViewDetails}
               onBuyNow={onBuyNow}
+              orderMode={orderMode}
+              onAddToCart={onAddToCart}
             />
           ))}
         </div>
