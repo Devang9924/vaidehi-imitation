@@ -1,2 +1,2 @@
-import handler from './verify-payment';
+import handler from './verify-payment.js';
 export default handler;

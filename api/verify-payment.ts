@@ -1,41 +1,55 @@
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { createClient } from '@supabase/supabase-js';
 
-interface VercelRequest extends IncomingMessage {
-  body: any;
-  query: { [key: string]: string | string[] };
-  method?: string;
+interface StreamEmitter {
+  on(event: string, listener: (...args: any[]) => void): this;
 }
 
-interface VercelResponse extends ServerResponse {
-  send: (body: any) => VercelResponse;
-  json: (jsonBody: any) => VercelResponse;
-  status: (statusCode: number) => VercelResponse;
+function isStreamEmitter(obj: any): obj is StreamEmitter {
+  return obj !== null && typeof obj === 'object' && typeof obj.on === 'function';
 }
 
-async function getRequestBody(req: VercelRequest): Promise<any> {
-  if (req.body) return req.body;
-  return new Promise((resolve, reject) => {
-    let raw = '';
-    req.on('data', (chunk) => {
-      raw += chunk;
-    });
-    req.on('end', () => {
+async function parseRequestBody(req: VercelRequest): Promise<any> {
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'string') {
       try {
-        resolve(raw ? JSON.parse(raw) : {});
+        return JSON.parse(req.body);
       } catch {
-        resolve({});
+        return {};
       }
+    }
+    return req.body;
+  }
+
+  if (isStreamEmitter(req)) {
+    return new Promise((resolve) => {
+      let raw = '';
+      req.on('data', (chunk: any) => {
+        raw += chunk;
+      });
+      req.on('end', () => {
+        try {
+          resolve(raw ? JSON.parse(raw) : {});
+        } catch {
+          resolve({});
+        }
+      });
+      req.on('error', () => {
+        resolve({});
+      });
     });
-    req.on('error', reject);
-  });
+  }
+
+  return {};
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    if (typeof res.setHeader === 'function') {
+      res.setHeader('Allow', 'POST');
+    }
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
@@ -58,7 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 'unknown';
 
   try {
-    const body = await getRequestBody(req);
+    const body = await parseRequestBody(req);
     const order_id = (body.order_id || body.razorpay_order_id || '').trim();
     const payment_id = (body.payment_id || body.razorpay_payment_id || '').trim();
     const signature = (body.signature || body.razorpay_signature || '').trim();

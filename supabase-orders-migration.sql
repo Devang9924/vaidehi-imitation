@@ -129,7 +129,7 @@ RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
-AS $
+AS $$
 DECLARE
     v_order public.orders%ROWTYPE;
 BEGIN
@@ -157,7 +157,7 @@ BEGIN
         'payment_status', v_order.payment_status
     );
 END;
-$;
+$$;
 
 -- Explicitly revoke execution from public, anon, and authenticated roles.
 -- ONLY the privileged backend service_role may execute this RPC.

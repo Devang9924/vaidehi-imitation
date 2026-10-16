@@ -1,18 +1,6 @@
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Razorpay from 'razorpay';
 import { createClient } from '@supabase/supabase-js';
-
-interface VercelRequest extends IncomingMessage {
-  body: any;
-  query: { [key: string]: string | string[] };
-  method?: string;
-}
-
-interface VercelResponse extends ServerResponse {
-  send: (body: any) => VercelResponse;
-  json: (jsonBody: any) => VercelResponse;
-  status: (statusCode: number) => VercelResponse;
-}
 
 // Trusted catalogue fallback ONLY permitted in test-only environments
 const SAMPLE_CATALOGUE: Record<string, { name: string; code: string; price: number }> = {
@@ -28,22 +16,46 @@ const SAMPLE_CATALOGUE: Record<string, { name: string; code: string; price: numb
   },
 };
 
-async function getRequestBody(req: VercelRequest): Promise<any> {
-  if (req.body) return req.body;
-  return new Promise((resolve, reject) => {
-    let raw = '';
-    req.on('data', (chunk) => {
-      raw += chunk;
-    });
-    req.on('end', () => {
+interface StreamEmitter {
+  on(event: string, listener: (...args: any[]) => void): this;
+}
+
+function isStreamEmitter(obj: any): obj is StreamEmitter {
+  return obj !== null && typeof obj === 'object' && typeof obj.on === 'function';
+}
+
+async function parseRequestBody(req: VercelRequest): Promise<any> {
+  if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'string') {
       try {
-        resolve(raw ? JSON.parse(raw) : {});
+        return JSON.parse(req.body);
       } catch {
-        resolve({});
+        return {};
       }
+    }
+    return req.body;
+  }
+
+  if (isStreamEmitter(req)) {
+    return new Promise((resolve) => {
+      let raw = '';
+      req.on('data', (chunk: any) => {
+        raw += chunk;
+      });
+      req.on('end', () => {
+        try {
+          resolve(raw ? JSON.parse(raw) : {});
+        } catch {
+          resolve({});
+        }
+      });
+      req.on('error', () => {
+        resolve({});
+      });
     });
-    req.on('error', reject);
-  });
+  }
+
+  return {};
 }
 
 function generateOrderNumber(): string {
@@ -54,7 +66,9 @@ function generateOrderNumber(): string {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    if (typeof res.setHeader === 'function') {
+      res.setHeader('Allow', 'POST');
+    }
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
@@ -79,7 +93,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const isLiveMode = paymentEnv === 'live';
 
   try {
-    const body = await getRequestBody(req);
+    const body = await parseRequestBody(req);
     const {
       receipt,
       is_test_ping = false,

@@ -1,2 +1,2 @@
-import handler from './create-order';
+import handler from './create-order.js';
 export default handler;
