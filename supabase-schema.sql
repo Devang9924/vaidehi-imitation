@@ -218,7 +218,7 @@
             ('Pendant', 'All', true),
             ('Watches', 'All', true),
             ('Other Jewellery', 'All', true)
-        ON CONFLICT (name) DO UPDATE 
+        ON CONFLICT (name) DO UPDATE
         SET is_active = EXCLUDED.is_active;
 
 
@@ -250,7 +250,7 @@
         -- Storage RLS: ONLY verified admins can update photos
         DROP POLICY IF EXISTS "Admin update product images" ON storage.objects;
         CREATE POLICY "Admin update product images"
-            ON storage.objects  
+            ON storage.objects
             FOR UPDATE
             TO authenticated
             USING (bucket_id = 'product-images' AND public.is_admin())
@@ -442,13 +442,25 @@
         -- Enable RLS on orders
         ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
-        -- 1. Public can insert new orders during website checkout
+        -- 1. Public can insert new orders during website checkout, strictly in pending / cod_pending status
         DROP POLICY IF EXISTS "Public insert orders" ON public.orders;
         CREATE POLICY "Public insert orders"
             ON public.orders
             FOR INSERT
             TO public
-            WITH CHECK (true);
+            WITH CHECK (
+                order_status = 'pending'
+                AND payment_status IN ('pending', 'cod_pending')
+                AND (
+                    (payment_method = 'cod' AND payment_status = 'cod_pending')
+                    OR (payment_method IN ('razorpay', 'whatsapp') AND payment_status = 'pending')
+                )
+            );
+
+        -- Unique index prevents duplicate payments across different orders at the database level
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_razorpay_payment_id
+        ON public.orders(razorpay_payment_id)
+        WHERE razorpay_payment_id IS NOT NULL;
 
         -- 2. ONLY verified admins can view all customer orders
         DROP POLICY IF EXISTS "Admin view all orders" ON public.orders;
@@ -466,3 +478,48 @@
             TO authenticated
             USING (public.is_admin())
             WITH CHECK (public.is_admin());
+        -- 4. Secure server-side confirmation RPC (Restricted to service_role)
+        CREATE OR REPLACE FUNCTION public.confirm_verified_order(
+            p_order_number TEXT,
+            p_razorpay_order_id TEXT,
+            p_razorpay_payment_id TEXT,
+            p_payment_env TEXT
+        )
+        RETURNS JSONB
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        SET search_path = ''
+        AS $$
+        DECLARE
+            v_order public.orders%ROWTYPE;
+        BEGIN
+            UPDATE public.orders
+            SET
+                payment_status = 'verified',
+                order_status = 'confirmed',
+                razorpay_payment_id = p_razorpay_payment_id,
+                payment_env = p_payment_env,
+                updated_at = timezone('utc'::text, now())
+            WHERE order_number = p_order_number
+              AND razorpay_order_id = p_razorpay_order_id
+              AND (payment_status = 'pending' OR razorpay_payment_id = p_razorpay_payment_id)
+            RETURNING * INTO v_order;
+
+            IF NOT FOUND THEN
+                RETURN jsonb_build_object('success', false, 'error', 'No matching pending order found');
+            END IF;
+
+            RETURN jsonb_build_object(
+                'success', true,
+                'order_number', v_order.order_number,
+                'order_status', v_order.order_status,
+                'payment_status', v_order.payment_status
+            );
+        END;
+        $$;
+
+        -- Revoke execute from public/anon/authenticated; grant only to service_role
+        REVOKE EXECUTE ON FUNCTION public.confirm_verified_order FROM PUBLIC;
+        REVOKE EXECUTE ON FUNCTION public.confirm_verified_order FROM anon;
+        REVOKE EXECUTE ON FUNCTION public.confirm_verified_order FROM authenticated;
+        GRANT EXECUTE ON FUNCTION public.confirm_verified_order TO service_role;

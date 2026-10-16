@@ -11,10 +11,10 @@ import {
   User, 
   ShoppingBag,
 } from 'lucide-react';
-import type { CartItem, StoreSettings, OrderItem, PaymentEnvironment } from '../../types';
+import type { CartItem, StoreSettings, OrderItem, PaymentEnvironment, Order } from '../../types';
 import { getCartTotals, removePurchasedItems, getCartItems } from '../../lib/cartStore';
 import { getCachedStoreSettings } from '../../lib/storeSettings';
-import { createCustomerOrder } from '../../lib/orderService';
+import { createCustomerOrder, saveLocalOrder } from '../../lib/orderService';
 import { formatINR } from '../../lib/whatsapp';
 import { BUSINESS_DETAILS } from '../../data/business';
 
@@ -163,18 +163,21 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       if (paymentMethod === 'razorpay') {
         const receiptId = generateReceiptId();
         
-        // Call backend create-order endpoint
+        // Call backend create-order endpoint with items for server-side validation
         const orderResponse = await fetch('/api/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            amount: totals.total,
-            currency: 'INR',
+            items: orderItems,
+            customer_name: fullName.trim(),
+            customer_phone: mobileNumber.trim(),
+            shipping_address: address.trim(),
+            city: city.trim(),
+            state: stateName.trim(),
+            pincode: pincode.trim(),
+            notes: notes.trim(),
+            payment_method: 'razorpay',
             receipt: receiptId,
-            notes: {
-              customer_name: fullName.trim(),
-              customer_phone: mobileNumber.trim(),
-            },
           }),
         });
 
@@ -192,6 +195,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         }
 
         const serverOrderId = orderData.order_id || orderData.orderId;
+        const serverOrderNumber = orderData.order_number || '';
+        const serverPaymentEnv: PaymentEnvironment = orderData.payment_env || 'unknown';
         const razorpayKey =
           orderData.key_id ||
           orderData.keyId ||
@@ -236,7 +241,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   razorpay_signature: string;
                 }) => {
                   try {
-                    // Send all three parameters to backend verify endpoint
+                    // Send parameters to backend verify endpoint
                     const verifyRes = await fetch('/api/verify-payment', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -244,6 +249,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                         order_id: response.razorpay_order_id,
                         payment_id: response.razorpay_payment_id,
                         signature: response.razorpay_signature,
+                        order_number: serverOrderNumber,
                       }),
                     });
 
@@ -252,11 +258,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                       throw new Error(verifyData.error || 'Payment signature verification failed.');
                     }
 
-                    // Trusted server environment flag
-                    const trustedEnv: PaymentEnvironment = verifyData.payment_env || (razorpayKey.startsWith('rzp_test_') ? 'test' : razorpayKey.startsWith('rzp_live_') ? 'live' : 'unknown');
-
-                    // Create confirmed order in repository only after verified payment
-                    const { order, error: orderErr } = await createCustomerOrder({
+                    const confirmedOrderNumber = verifyData.order_number || serverOrderNumber;
+                    const finalOrder: Order = verifyData.order || {
+                      id: `ord-${Date.now()}`,
+                      order_number: confirmedOrderNumber,
                       customer_name: fullName.trim(),
                       customer_phone: mobileNumber.trim(),
                       shipping_address: address.trim(),
@@ -270,20 +275,21 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                       total: totals.total,
                       payment_method: 'razorpay',
                       payment_status: 'verified',
-                      payment_env: trustedEnv,
+                      payment_env: verifyData.payment_env || serverPaymentEnv,
                       order_status: 'confirmed',
                       razorpay_order_id: response.razorpay_order_id,
                       razorpay_payment_id: response.razorpay_payment_id,
-                    });
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    };
 
-                    if (orderErr || !order) {
-                      throw new Error(orderErr || 'Failed to save confirmed order record.');
-                    }
+                    // Cache locally as immediate backup
+                    saveLocalOrder(finalOrder);
 
                     // Remove ONLY purchased items; leave unselected items in cart
                     removePurchasedItems(purchasedItemIds);
                     resolve();
-                    onOrderSuccess(order.order_number);
+                    onOrderSuccess(confirmedOrderNumber);
                   } catch (err: any) {
                     reject(err);
                   }
@@ -308,7 +314,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         return;
       }
 
-      // B. Cash On Delivery (COD)
+      // B. Cash On Delivery (COD) - Preserved exactly as required
       if (paymentMethod === 'cod') {
         const { order, error: orderErr } = await createCustomerOrder({
           customer_name: fullName.trim(),

@@ -1,9 +1,9 @@
 -- ==============================================================================
--- VAIDEHI IMITATION - ORDERS & SETTINGS MIGRATION SCRIPT
+-- VAIDEHI IMITATION - ORDERS & SETTINGS MIGRATION SCRIPT (HARDENED)
 -- ==============================================================================
 -- Run this in your Supabase Dashboard -> SQL Editor -> New Query -> Run
 -- This script creates the missing public.orders and public.store_settings tables,
--- columns, indexes, and Row Level Security (RLS) policies.
+-- columns, indexes, hardened Row Level Security (RLS) policies, and server RPCs.
 -- Safe to run on existing databases (uses IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
 -- ==============================================================================
 
@@ -46,12 +46,17 @@ ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_env TEXT NOT NULL DEF
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS razorpay_order_id TEXT;
 ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS razorpay_payment_id TEXT;
 
--- 3. Performance Indexes
+-- 3. Performance Indexes & Duplicate Payment Prevention
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON public.orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(order_status, payment_status);
 CREATE INDEX IF NOT EXISTS idx_orders_payment_env ON public.orders(payment_env);
 CREATE INDEX IF NOT EXISTS idx_orders_phone ON public.orders(customer_phone);
 CREATE INDEX IF NOT EXISTS idx_orders_order_number ON public.orders(order_number);
+
+-- Unique index prevents duplicate payments across different orders at the database level
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_razorpay_payment_id
+ON public.orders(razorpay_payment_id)
+WHERE razorpay_payment_id IS NOT NULL;
 
 -- 4. Trigger for updated_at
 DROP TRIGGER IF EXISTS trigger_orders_updated_at ON public.orders;
@@ -80,13 +85,21 @@ $$;
 -- 5. Row Level Security (RLS) for public.orders
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
--- 5a. Public customers can insert orders during website checkout
+-- 5a. Public customers can insert orders, BUT ONLY in 'pending' or 'cod_pending' status.
+-- This prevents malicious browser clients from forging 'verified' or 'confirmed' orders.
 DROP POLICY IF EXISTS "Public insert orders" ON public.orders;
 CREATE POLICY "Public insert orders"
     ON public.orders
     FOR INSERT
     TO public
-    WITH CHECK (true);
+    WITH CHECK (
+        order_status = 'pending'
+        AND payment_status IN ('pending', 'cod_pending')
+        AND (
+            (payment_method = 'cod' AND payment_status = 'cod_pending')
+            OR (payment_method IN ('razorpay', 'whatsapp') AND payment_status = 'pending')
+        )
+    );
 
 -- 5b. Authenticated admins can view all orders
 DROP POLICY IF EXISTS "Admin view all orders" ON public.orders;
@@ -104,6 +117,54 @@ CREATE POLICY "Admin update orders"
     TO authenticated
     USING (public.is_admin())
     WITH CHECK (public.is_admin());
+
+-- 5d. Secure server-side confirmation RPC (accessible to service_role)
+CREATE OR REPLACE FUNCTION public.confirm_verified_order(
+    p_order_number TEXT,
+    p_razorpay_order_id TEXT,
+    p_razorpay_payment_id TEXT,
+    p_payment_env TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $
+DECLARE
+    v_order public.orders%ROWTYPE;
+BEGIN
+    -- Strict dual binding: order_number AND razorpay_order_id must match together
+    UPDATE public.orders
+    SET
+        payment_status = 'verified',
+        order_status = 'confirmed',
+        razorpay_payment_id = p_razorpay_payment_id,
+        payment_env = p_payment_env,
+        updated_at = timezone('utc'::text, now())
+    WHERE order_number = p_order_number
+      AND razorpay_order_id = p_razorpay_order_id
+      AND (payment_status = 'pending' OR razorpay_payment_id = p_razorpay_payment_id)
+    RETURNING * INTO v_order;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('success', false, 'error', 'No matching pending order found for this order number and Razorpay order ID');
+    END IF;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'order_number', v_order.order_number,
+        'order_status', v_order.order_status,
+        'payment_status', v_order.payment_status
+    );
+END;
+$;
+
+-- Explicitly revoke execution from public, anon, and authenticated roles.
+-- ONLY the privileged backend service_role may execute this RPC.
+REVOKE EXECUTE ON FUNCTION public.confirm_verified_order FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.confirm_verified_order FROM anon;
+REVOKE EXECUTE ON FUNCTION public.confirm_verified_order FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.confirm_verified_order TO service_role;
 
 -- 6. Store Settings Table (also missing in schema cache)
 CREATE TABLE IF NOT EXISTS public.store_settings (

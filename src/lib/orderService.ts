@@ -54,6 +54,7 @@ export const generateOrderNumber = (): string => {
 /**
  * Submit and persist a customer checkout order.
  * Prevents accidental duplicate submissions and duplicate orders on repeated verification callbacks.
+ * Enforces unforgeable status: COD is always cod_pending/pending; direct inserts can never forge confirmed orders.
  */
 export const createCustomerOrder = async (
   orderInput: Omit<Order, 'id' | 'order_number' | 'created_at' | 'updated_at'>
@@ -119,10 +120,29 @@ export const createCustomerOrder = async (
         : 'unknown'
   );
 
+  // Security enforcement: sanitize statuses for direct client creations
+  let safePaymentStatus: PaymentStatus = 'pending';
+  let safeOrderStatus: OrderStatus = 'pending';
+
+  if (orderInput.payment_method === 'cod') {
+    safePaymentStatus = 'cod_pending';
+    safeOrderStatus = 'pending';
+  } else if (orderInput.payment_method === 'whatsapp') {
+    safePaymentStatus = 'pending';
+    safeOrderStatus = 'pending';
+  } else if (orderInput.payment_method === 'razorpay') {
+    // Client-side code can never mark an online order as verified or confirmed.
+    // Online orders are strictly verified and confirmed on the server.
+    safePaymentStatus = 'pending';
+    safeOrderStatus = 'pending';
+  }
+
   const newOrder: Order = {
     ...orderInput,
     id: `local-ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     order_number: orderNumber,
+    payment_status: safePaymentStatus,
+    order_status: safeOrderStatus,
     payment_env: resolvedEnv,
     created_at: now,
     updated_at: now,
