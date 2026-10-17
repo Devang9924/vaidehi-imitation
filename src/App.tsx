@@ -35,6 +35,7 @@ import { BuyOrderModal } from './components/BuyOrderModal';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { CheckoutPage } from './components/checkout/CheckoutPage';
 import { OrderConfirmationPage } from './components/checkout/OrderConfirmationPage';
+import { CheckoutErrorPage } from './components/checkout/CheckoutErrorPage';
 import { AdminPage } from './components/admin/AdminPage';
 
 // Policy Pages
@@ -51,6 +52,7 @@ export type ActiveRoute =
   | 'store'
   | 'admin'
   | 'checkout'
+  | 'checkout-error'
   | 'order-confirmation'
   | 'privacy-policy'
   | 'terms-and-conditions'
@@ -76,6 +78,16 @@ function getActiveRoute(): ActiveRoute {
   }
 
   // 2. Checkout & Order Confirmation routes
+  if (
+    path === '/checkout-error' ||
+    path.startsWith('/checkout-error') ||
+    hash === '#/checkout-error' ||
+    hash === '#checkout-error' ||
+    hash.startsWith('#/checkout-error')
+  ) {
+    return 'checkout-error';
+  }
+
   if (path === '/checkout' || hash === '#/checkout' || hash === '#checkout') {
     return 'checkout';
   }
@@ -219,6 +231,9 @@ export const App: React.FC = () => {
     switch (activeRoute) {
       case 'checkout':
         document.title = `Checkout & Payment | ${BUSINESS_DETAILS.brandName}`;
+        break;
+      case 'checkout-error':
+        document.title = `Checkout Interrupted | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'order-confirmation':
         document.title = `Order Confirmed | ${BUSINESS_DETAILS.brandName}`;
@@ -479,6 +494,18 @@ export const App: React.FC = () => {
     );
   }
 
+  // Dedicated Checkout Error Route
+  if (activeRoute === 'checkout-error') {
+    return (
+      <CheckoutErrorPage
+        onNavigate={navigateTo}
+        onBackToCheckout={() => navigateTo('/checkout')}
+        onBackToShopping={() => navigateTo('/')}
+        hasCod={Boolean(storeSettings.cod_enabled)}
+      />
+    );
+  }
+
   // Dedicated Order Confirmation Route
   if (activeRoute === 'order-confirmation') {
     return (
@@ -511,7 +538,7 @@ export const App: React.FC = () => {
   // Customer-facing storefront
   return (
     <div className="min-h-screen bg-[#FFF8F9] text-[#1F1A1C] flex flex-col font-sans-clean antialiased overflow-x-hidden w-full relative">
-      
+
       {/* Page Refresh & Initial Entrance Luxury Animation */}
       <PageEntranceLoader />
 
@@ -529,7 +556,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16 sm:pb-0">
-        
+
         {/* 2. Hero Section */}
         <Hero onShopClick={scrollToCatalogue} />
 
@@ -592,7 +619,7 @@ export const App: React.FC = () => {
       />
 
       {/* Customer Modals */}
-      
+
       {/* Slide-over Shopping Cart Drawer */}
       <CartDrawer
         isOpen={isCartOpen}

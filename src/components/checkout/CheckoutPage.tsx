@@ -1,18 +1,36 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  ArrowLeft, 
-  ShieldCheck, 
-  CreditCard, 
-  Banknote, 
-  AlertCircle, 
-  Loader2, 
-  MapPin, 
-  Phone, 
-  User, 
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  ArrowLeft,
+  ShieldCheck,
+  CreditCard,
+  Banknote,
+  AlertCircle,
+  Loader2,
+  MapPin,
+  Phone,
+  User,
   ShoppingBag,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import type { CartItem, StoreSettings, OrderItem, PaymentEnvironment, Order } from '../../types';
-import { getCartTotals, removePurchasedItems, getCartItems } from '../../lib/cartStore';
+import {
+  getCartTotals,
+  removePurchasedItems,
+  getCartItems,
+  subscribeToCart,
+  toggleCartItemSelection,
+  selectAllCartItems,
+  getSelectedCartTotals
+} from '../../lib/cartStore';
+import {
+  saveCheckoutDraft,
+  getCheckoutDraft,
+  clearCheckoutDraft,
+  saveCheckoutError,
+  clearCheckoutError,
+  type CheckoutCustomerDraft
+} from '../../lib/checkoutDraft';
 import { getCachedStoreSettings } from '../../lib/storeSettings';
 import { createCustomerOrder, saveLocalOrder } from '../../lib/orderService';
 import { formatINR } from '../../lib/whatsapp';
@@ -28,7 +46,7 @@ interface CheckoutPageProps {
 }
 
 const generateReceiptId = (): string => {
-  return `rcpt_${Math.floor(Date.now() / 1000)}_${Math.floor(Math.random() * 1000)}`;
+  return "rcpt_" + Math.floor(Date.now() / 1000) + "_" + Math.floor(Math.random() * 1000);
 };
 
 export const CheckoutPage: React.FC<CheckoutPageProps> = ({
@@ -40,14 +58,26 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   onOrderSuccess,
 }) => {
   const settings = propsSettings || getCachedStoreSettings();
-  
-  // Filter strictly to selected cart items for checkout
-  const rawItems = propsItems || getCartItems();
-  const selectedItems = useMemo(
-    () => rawItems.filter((i) => i.selected !== false),
-    [rawItems]
-  );
-  
+
+  // Internal reactive cart state
+  const [internalItems, setInternalItems] = useState<CartItem[]>(() => propsItems || getCartItems());
+
+  useEffect(() => {
+    if (propsItems) {
+      setInternalItems(propsItems);
+    }
+  }, [propsItems]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToCart((updated) => {
+      setInternalItems(updated);
+    });
+    return unsubscribe;
+  }, []);
+
+  const allCartItems = propsItems || internalItems;
+  const selectionMetrics = useMemo(() => getSelectedCartTotals(allCartItems), [allCartItems]);
+  const selectedItems = selectionMetrics.selectedItems;
   const totals = useMemo(() => getCartTotals(selectedItems), [selectedItems]);
 
   const handleBack = () => {
@@ -57,14 +87,17 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     else window.history.back();
   };
 
-  // Form Fields
-  const [fullName, setFullName] = useState('');
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [stateName, setStateName] = useState('Gujarat');
-  const [pincode, setPincode] = useState('');
-  const [notes, setNotes] = useState('');
+  // Saved Draft Retrieval
+  const savedDraft = useMemo(() => getCheckoutDraft(), []);
+
+  // Form Fields (Restored from draft if available)
+  const [fullName, setFullName] = useState<string>(() => savedDraft?.fullName || '');
+  const [mobileNumber, setMobileNumber] = useState<string>(() => savedDraft?.mobileNumber || '');
+  const [address, setAddress] = useState<string>(() => savedDraft?.address || '');
+  const [city, setCity] = useState<string>(() => savedDraft?.city || '');
+  const [stateName, setStateName] = useState<string>(() => savedDraft?.stateName || 'Gujarat');
+  const [pincode, setPincode] = useState<string>(() => savedDraft?.pincode || '');
+  const [notes, setNotes] = useState<string>(() => savedDraft?.notes || '');
 
   // Payment Selection: In Online Checkout Mode, ONLY genuine enabled methods are allowed
   const hasRazorpay = Boolean(settings.razorpay_enabled);
@@ -72,6 +105,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const hasAnyPaymentMethod = hasRazorpay || hasCod;
 
   const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod' | ''>(() => {
+    if (savedDraft?.paymentMethod) {
+      if (savedDraft.paymentMethod === 'razorpay' && hasRazorpay) return 'razorpay';
+      if (savedDraft.paymentMethod === 'cod' && hasCod) return 'cod';
+    }
     if (hasRazorpay) return 'razorpay';
     if (hasCod) return 'cod';
     return '';
@@ -79,8 +116,53 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
   // UI state
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [serverError, setServerError] = useState<{ message: string; isAuthError?: boolean } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Automatically preserve form inputs into draft
+  useEffect(() => {
+    const draft: CheckoutCustomerDraft = {
+      fullName,
+      mobileNumber,
+      address,
+      city,
+      stateName,
+      pincode,
+      notes,
+      paymentMethod,
+    };
+    saveCheckoutDraft(draft);
+  }, [fullName, mobileNumber, address, city, stateName, pincode, notes, paymentMethod]);
+
+  // Centralized Error Redirection Helper
+  const redirectToError = (
+    message: string,
+    code?: string,
+    options?: { suggestCod?: boolean; paymentMethod?: 'razorpay' | 'cod' | '' }
+  ) => {
+    saveCheckoutDraft({
+      fullName,
+      mobileNumber,
+      address,
+      city,
+      stateName,
+      pincode,
+      notes,
+      paymentMethod,
+    });
+    saveCheckoutError({
+      message,
+      code: code || 'CHECKOUT_ERROR',
+      paymentMethod: options?.paymentMethod ?? paymentMethod,
+      suggestCod: options?.suggestCod,
+      timestamp: Date.now(),
+    });
+    setIsSubmitting(false);
+    if (onNavigate) {
+      onNavigate('/checkout-error');
+    } else {
+      window.location.href = '/checkout-error';
+    }
+  };
 
   // Validate form
   const validateForm = (): boolean => {
@@ -89,7 +171,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     if (!fullName.trim()) {
       errs.fullName = 'Please enter your full name.';
     } else if (fullName.trim().length < 3) {
-      errs.fullName = 'Name must be at least 3 characters.';
+      errs.fullName = 'Full name must be at least 3 characters.';
     }
 
     const cleanMobile = mobileNumber.replace(/\D/g, '');
@@ -125,21 +207,37 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    setServerError(null);
 
+    // Prevent duplicate submissions
     if (isSubmitting) return;
 
+    if (allCartItems.length === 0) {
+      redirectToError('Your shopping bag is empty. Please select jewellery items to purchase.', 'EMPTY_CART');
+      return;
+    }
+
     if (selectedItems.length === 0) {
-      setServerError({ message: 'No items are selected for checkout. Please return to your shopping bag and select items.' });
+      redirectToError('No pieces are selected for checkout. Please select the items you wish to purchase and try again.', 'NO_ITEMS_SELECTED');
       return;
     }
 
     if (!hasAnyPaymentMethod) {
-      setServerError({ message: 'No payment methods are currently active. Please contact our showroom at +91 96875 99517.' });
+      redirectToError('No payment methods are currently active. Please contact our showroom at +91 ' + BUSINESS_DETAILS.formattedPhone + '.', 'NO_PAYMENT_METHOD');
       return;
     }
 
     if (!validateForm()) {
+      const errs: Record<string, string> = {};
+      if (!fullName.trim() || fullName.trim().length < 3) errs.fullName = 'Please enter a valid full name.';
+      const cleanMobile = mobileNumber.replace(/\D/g, '');
+      if (!/^[6-9]\d{9}$/.test(cleanMobile)) errs.mobileNumber = 'Please enter a valid 10-digit mobile number.';
+      if (!address.trim() || address.trim().length < 8) errs.address = 'Please provide a complete delivery address.';
+      if (!city.trim()) errs.city = 'Please enter city/town.';
+      if (!/^[1-9][0-9]{5}$/.test(pincode.trim())) errs.pincode = 'Please enter a valid 6-digit PIN code.';
+      if (!paymentMethod) errs.paymentMethod = 'Please choose a payment method.';
+
+      const firstErr = Object.values(errs)[0] || 'Please complete all required fields correctly.';
+      redirectToError(firstErr, 'VALIDATION_ERROR');
       return;
     }
 
@@ -156,13 +254,13 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         subtotal: i.unit_price * i.quantity,
       }));
 
-      // Purchased item IDs to remove from cart upon completion
+      // Purchased item IDs to remove from cart strictly upon success
       const purchasedItemIds = selectedItems.map((i) => i.id);
 
       // A. Online Razorpay Standard Checkout
       if (paymentMethod === 'razorpay') {
         const receiptId = generateReceiptId();
-        
+
         // Call backend create-order endpoint with items for server-side validation
         const orderResponse = await fetch('/api/create-order', {
           method: 'POST',
@@ -189,8 +287,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             ? 'Online payment gateway is temporarily unavailable (Authentication Failed). Please select Cash on Delivery or contact our showroom.'
             : orderData.error || orderData.message || 'Online payment gateway is temporarily unavailable. Please try Cash on Delivery or contact our showroom.';
 
-          setServerError({ message: errMsg, isAuthError: isAuth });
-          setIsSubmitting(false);
+          redirectToError(errMsg, orderData.code || (isAuth ? 'RAZORPAY_AUTHENTICATION_FAILED' : 'CREATE_ORDER_FAILED'), {
+            suggestCod: hasCod,
+            paymentMethod: 'razorpay',
+          });
           return;
         }
 
@@ -203,7 +303,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           (import.meta.env.VITE_RAZORPAY_KEY_ID as string);
 
         if (!razorpayKey) {
-          throw new Error('Payment gateway configuration is incomplete.');
+          redirectToError('Payment gateway configuration is incomplete. Please contact our showroom.', 'GATEWAY_CREDENTIALS_MISSING', {
+            suggestCod: hasCod,
+            paymentMethod: 'razorpay',
+          });
+          return;
         }
 
         // Open Razorpay Standard Checkout Modal
@@ -214,7 +318,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
               const script = document.createElement('script');
               script.src = 'https://checkout.razorpay.com/v1/checkout.js';
               script.onload = () => res(true);
-              script.onerror = () => rej(new Error('Failed to load Razorpay payment window.'));
+              script.onerror = () => rej(new Error('Failed to load Razorpay payment window. Please check your internet connection or choose Cash on Delivery.'));
               document.body.appendChild(script);
             });
           };
@@ -226,7 +330,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 amount: orderData.amount,
                 currency: orderData.currency || 'INR',
                 name: BUSINESS_DETAILS.brandName,
-                description: `Order Payment (${totals.totalQuantity} items)`,
+                description: 'Order Payment (' + totals.totalQuantity + ' ' + (totals.totalQuantity === 1 ? 'piece' : 'pieces') + ')',
                 order_id: serverOrderId,
                 prefill: {
                   name: fullName.trim(),
@@ -255,12 +359,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
                     const verifyData = await verifyRes.json();
                     if (!verifyRes.ok || (!verifyData.success && !verifyData.verified)) {
-                      throw new Error(verifyData.error || 'Payment signature verification failed.');
+                      throw new Error(verifyData.error || 'Payment signature verification could not be confirmed.');
                     }
 
                     const confirmedOrderNumber = verifyData.order_number || serverOrderNumber;
                     const finalOrder: Order = verifyData.order || {
-                      id: `ord-${Date.now()}`,
+                      id: 'ord-' + Date.now(),
                       order_number: confirmedOrderNumber,
                       customer_name: fullName.trim(),
                       customer_phone: mobileNumber.trim(),
@@ -288,6 +392,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
                     // Remove ONLY purchased items; leave unselected items in cart
                     removePurchasedItems(purchasedItemIds);
+                    clearCheckoutDraft();
+                    clearCheckoutError();
                     resolve();
                     onOrderSuccess(confirmedOrderNumber);
                   } catch (err: any) {
@@ -296,25 +402,35 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 },
                 modal: {
                   ondismiss: () => {
-                    reject(new Error('Payment window was closed before completion. You can try again or choose Cash on Delivery.'));
+                    redirectToError(
+                      'Payment window was closed before completing the transaction. You can try again or choose Cash on Delivery.',
+                      'PAYMENT_CANCELLED',
+                      { suggestCod: hasCod, paymentMethod: 'razorpay' }
+                    );
                   },
                 },
               });
 
               rzp.on('payment.failed', (resp: any) => {
-                const failReason = resp.error?.description || resp.error?.reason || 'Payment transaction failed.';
-                reject(new Error(failReason));
+                const failReason = resp.error?.description || resp.error?.reason || 'Payment transaction failed with your payment provider.';
+                redirectToError(failReason, 'PAYMENT_FAILED', { suggestCod: hasCod, paymentMethod: 'razorpay' });
               });
 
               rzp.open();
             })
-            .catch(reject);
+            .catch((scriptErr: any) => {
+              redirectToError(
+                scriptErr.message || 'Unable to connect to Razorpay payment window. Please check your internet connection or choose Cash on Delivery.',
+                'SCRIPT_LOAD_ERROR',
+                { suggestCod: hasCod, paymentMethod: 'razorpay' }
+              );
+            });
         });
 
         return;
       }
 
-      // B. Cash On Delivery (COD) - Preserved exactly as required
+      // B. Cash On Delivery (COD)
       if (paymentMethod === 'cod') {
         const { order, error: orderErr } = await createCustomerOrder({
           customer_name: fullName.trim(),
@@ -335,24 +451,27 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         });
 
         if (orderErr || !order) {
-          throw new Error(orderErr || 'Failed to place Cash on Delivery order.');
+          redirectToError(orderErr || 'Failed to place Cash on Delivery order.', 'COD_ORDER_ERROR', { paymentMethod: 'cod' });
+          return;
         }
 
         // Remove ONLY purchased items; leave unselected items in cart
         removePurchasedItems(purchasedItemIds);
+        clearCheckoutDraft();
+        clearCheckoutError();
         onOrderSuccess(order.order_number);
         return;
       }
 
     } catch (err: any) {
-      setServerError({ message: err.message || 'An unexpected error occurred during order processing.' });
+      redirectToError(err.message || 'An unexpected error occurred during order processing.', 'PROCESSING_ERROR');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // If no items are selected for checkout
-  if (selectedItems.length === 0) {
+  // If entire shopping bag has 0 items
+  if (allCartItems.length === 0) {
     return (
       <div className="min-h-screen bg-[#FFF8F9] flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl border border-[#F5D8E0] p-8 max-w-md w-full text-center space-y-4 shadow-sm">
@@ -360,18 +479,16 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             <ShoppingBag className="w-8 h-8" />
           </div>
           <h2 className="font-heading text-xl font-bold text-[#1F1A1C]">
-            No Items Selected for Checkout
+            Your Shopping Bag is Empty
           </h2>
           <p className="text-xs text-[#6E6267] leading-relaxed">
-            {rawItems.length > 0
-              ? 'You have pieces in your cart, but none are selected. Please open your shopping bag and check the items you wish to purchase.'
-              : 'There are no items in your shopping bag to checkout. Please explore our jewellery catalogue to add items.'}
+            There are no items in your shopping bag to checkout. Please explore our jewellery catalogue to add items.
           </p>
           <button
             onClick={handleBack}
             className="w-full py-2.5 rounded-full bg-[#8B4F58] text-white text-xs font-semibold hover:bg-[#9E5863] transition-colors cursor-pointer"
           >
-            {rawItems.length > 0 ? 'Return to Shopping Bag' : 'Return to Catalogue'}
+            Return to Catalogue
           </button>
         </div>
       </div>
@@ -410,10 +527,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       {/* Main Container */}
       <main className="max-w-6xl mx-auto px-4 py-8">
         <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
+
           {/* Left Column: Delivery & Payment Details */}
           <div className="lg:col-span-7 space-y-6">
-            
+
             {/* Delivery Address Card */}
             <div className="bg-white rounded-3xl border border-[#F5D8E0] p-6 shadow-2xs space-y-4">
               <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
@@ -436,9 +553,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     placeholder="e.g. Priyaben Patel"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ${
-                      errors.fullName ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]'
-                    }`}
+                    className={'w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ' + (errors.fullName ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]')}
                   />
                   {errors.fullName && <p className="text-[11px] text-red-600">{errors.fullName}</p>}
                 </div>
@@ -460,9 +575,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                       placeholder="9876543210"
                       value={mobileNumber}
                       onChange={(e) => setMobileNumber(e.target.value.replace(/\D/g, ''))}
-                      className={`w-full pl-12 pr-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ${
-                        errors.mobileNumber ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]'
-                      }`}
+                      className={'w-full pl-12 pr-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ' + (errors.mobileNumber ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]')}
                     />
                   </div>
                   {errors.mobileNumber && <p className="text-[11px] text-red-600">{errors.mobileNumber}</p>}
@@ -479,9 +592,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     placeholder="e.g. 102, Gokul Dham Society, Near Station Road"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ${
-                      errors.address ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]'
-                    }`}
+                    className={'w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ' + (errors.address ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]')}
                   />
                   {errors.address && <p className="text-[11px] text-red-600">{errors.address}</p>}
                 </div>
@@ -495,9 +606,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     placeholder="e.g. Botad, Bhavnagar, Ahmedabad"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ${
-                      errors.city ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]'
-                    }`}
+                    className={'w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ' + (errors.city ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]')}
                   />
                   {errors.city && <p className="text-[11px] text-red-600">{errors.city}</p>}
                 </div>
@@ -526,9 +635,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     placeholder="364740"
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value.replace(/\D/g, ''))}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ${
-                      errors.pincode ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]'
-                    }`}
+                    className={'w-full px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm bg-[#FFFDFC] focus:outline-hidden focus:ring-2 focus:ring-[#8B4F58] ' + (errors.pincode ? 'border-red-400 bg-red-50/30' : 'border-[#F0C9D3]')}
                   />
                   {errors.pincode && <p className="text-[11px] text-red-600">{errors.pincode}</p>}
                 </div>
@@ -570,14 +677,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* 1. Razorpay Option (Displayed only when enabled) */}
+                  {/* 1. Razorpay Option */}
                   {hasRazorpay && (
                     <label
-                      className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                        paymentMethod === 'razorpay'
-                          ? 'border-[#8B4F58] bg-[#FFF8F9] ring-2 ring-[#8B4F58]/20'
-                          : 'border-[#F0C9D3] bg-white hover:bg-gray-50'
-                      }`}
+                      className={'flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ' + (paymentMethod === 'razorpay' ? 'border-[#8B4F58] bg-[#FFF8F9] ring-2 ring-[#8B4F58]/20' : 'border-[#F0C9D3] bg-white hover:bg-gray-50')}
                     >
                       <input
                         type="radio"
@@ -603,14 +706,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     </label>
                   )}
 
-                  {/* 2. Cash on Delivery (COD) Option (Displayed only when enabled in Admin settings) */}
+                  {/* 2. Cash on Delivery (COD) Option */}
                   {hasCod && (
                     <label
-                      className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                        paymentMethod === 'cod'
-                          ? 'border-[#8B4F58] bg-[#FFF8F9] ring-2 ring-[#8B4F58]/20'
-                          : 'border-[#F0C9D3] bg-white hover:bg-gray-50'
-                      }`}
+                      className={'flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ' + (paymentMethod === 'cod' ? 'border-[#8B4F58] bg-[#FFF8F9] ring-2 ring-[#8B4F58]/20' : 'border-[#F0C9D3] bg-white hover:bg-gray-50')}
                     >
                       <input
                         type="radio"
@@ -645,87 +744,127 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
           </div>
 
-          {/* Right Column: Order Summary & Placement */}
+          {/* Right Column: Order Summary & Placement with Multi-product selection controls */}
           <div className="lg:col-span-5 space-y-6">
-            
-            <div className="bg-white rounded-3xl border border-[#F5D8E0] p-6 shadow-2xs space-y-5 sticky top-24">
-              <h2 className="font-heading text-base font-bold text-[#1F1A1C] border-b border-gray-100 pb-3">
-                Order Summary ({totals.totalQuantity} {totals.totalQuantity === 1 ? 'item' : 'items'})
-              </h2>
 
-              {/* Items List */}
-              <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
-                {selectedItems.map((item) => (
-                  <div key={item.id} className="flex gap-3 text-xs items-center">
-                    <div className="w-12 h-12 rounded-lg bg-[#FFF5F8] border border-[#F0C9D3] p-0.5 shrink-0 flex items-center justify-center overflow-hidden">
-                      <img
-                        src={item.selectedImageUrl || (item.product.images && item.product.images[0]) || '/images/sample-necklace-1.jpg'}
-                        alt={item.product.name}
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="font-mono text-[10px] text-[#8B4F58] block truncate">
-                        {item.product.code}
-                      </span>
-                      <h4 className="font-medium text-[#1F1A1C] truncate leading-tight">
-                        {item.product.name}
-                      </h4>
-                      <span className="text-gray-500 text-[10px]">Qty: {item.quantity}</span>
-                    </div>
-                    <span className="font-bold text-[#1F1A1C] shrink-0">
-                      {formatINR(item.unit_price * item.quantity)}
-                    </span>
-                  </div>
-                ))}
+            <div className="bg-white rounded-3xl border border-[#F5D8E0] p-6 shadow-2xs space-y-5 sticky top-24">
+
+              {/* Summary Header with Select All / Deselect All */}
+              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <div>
+                  <h2 className="font-heading text-base font-bold text-[#1F1A1C]">
+                    Order Summary
+                  </h2>
+                  <span className="text-[11px] text-[#8B4F58] font-semibold">
+                    {selectionMetrics.selectedCount} of {selectionMetrics.totalItemsCount} pieces selected ({selectionMetrics.selectedQuantity} {selectionMetrics.selectedQuantity === 1 ? 'item' : 'items'})
+                  </span>
+                </div>
+
+                {allCartItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => selectAllCartItems(!selectionMetrics.allSelected)}
+                    className="flex items-center gap-1.5 text-xs text-[#8B4F58] hover:text-[#6A3940] font-semibold transition-colors cursor-pointer"
+                  >
+                    {selectionMetrics.allSelected ? (
+                      <>
+                        <CheckSquare className="w-4 h-4 text-[#8B4F58]" />
+                        <span>Deselect All</span>
+                      </>
+                    ) : (
+                      <>
+                        <Square className="w-4 h-4 text-gray-400" />
+                        <span>Select All</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
+
+              {/* Items List with Individual Selection Checkboxes */}
+              <div className="max-h-72 overflow-y-auto space-y-2.5 pr-1">
+                {allCartItems.map((item) => {
+                  const isSelected = item.selected !== false;
+                  return (
+                    <div
+                      key={item.id}
+                      className={'flex gap-3 text-xs items-center p-2.5 rounded-2xl transition-all border ' + (isSelected ? 'border-[#F5D8E0] bg-[#FFFDFC]' : 'border-gray-200 bg-gray-50/60 opacity-60')}
+                    >
+                      {/* Selection Checkbox */}
+                      <button
+                        type="button"
+                        onClick={() => toggleCartItemSelection(item.id)}
+                        className="text-[#8B4F58] hover:scale-110 transition-transform shrink-0 p-0.5 cursor-pointer"
+                        aria-label={isSelected ? ('Deselect ' + item.product.name) : ('Select ' + item.product.name)}
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-4 h-4 text-[#8B4F58]" />
+                        ) : (
+                          <Square className="w-4 h-4 text-gray-400" />
+                        )}
+                      </button>
+
+                      <div className="w-12 h-12 rounded-lg bg-[#FFF5F8] border border-[#F0C9D3] p-0.5 shrink-0 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={item.selectedImageUrl || (item.product.images && item.product.images[0]) || '/images/sample-necklace-1.jpg'}
+                          alt={item.product.name}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = '/images/sample-necklace-1.jpg';
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-mono text-[10px] text-[#8B4F58] block truncate font-bold">
+                          {item.product.code}
+                        </span>
+                        <h4 className="font-medium text-[#1F1A1C] truncate leading-tight">
+                          {item.product.name}
+                        </h4>
+                        <span className="text-gray-500 text-[10px]">Qty: {item.quantity}</span>
+                      </div>
+                      <span className="font-bold text-[#1F1A1C] shrink-0">
+                        {formatINR(item.unit_price * item.quantity)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Warning when no pieces are selected */}
+              {selectionMetrics.noneSelected && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>No pieces selected. Please select at least one piece above to proceed with order.</span>
+                </div>
+              )}
 
               {/* Financial Calculation */}
               <div className="space-y-2 pt-3 border-t border-gray-100 text-xs text-[#5A4E53]">
+                <div className="flex justify-between">
+                  <span>Selected Pieces</span>
+                  <span className="font-semibold text-[#1F1A1C]">
+                    {totals.totalQuantity} {totals.totalQuantity === 1 ? 'piece' : 'pieces'}
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span>Subtotal</span>
                   <span className="font-semibold text-[#1F1A1C]">{formatINR(totals.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Delivery Charges</span>
+                  <span>Courier Delivery Charges</span>
                   <span className="text-emerald-700 font-semibold">Free Delivery</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-[#F0C9D3] text-base font-bold text-[#1F1A1C]">
-                  <span>Total Amount</span>
+                  <span>Total Payable</span>
                   <span className="text-[#8B4F58]">{formatINR(totals.total)}</span>
                 </div>
               </div>
 
-              {/* Error Callout */}
-              {serverError && (
-                <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-xs text-amber-950 space-y-2.5 animate-fade-in shadow-2xs">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-                    <span className="leading-relaxed">{serverError.message}</span>
-                  </div>
-
-                  {serverError.isAuthError && hasCod && (
-                    <div className="pt-2 border-t border-amber-200/80">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaymentMethod('cod');
-                          setServerError(null);
-                        }}
-                        className="w-full py-1.5 px-3 rounded-xl bg-white border border-amber-400 text-amber-900 font-semibold text-[11px] hover:bg-amber-100 transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <Banknote className="w-3.5 h-3.5 text-amber-700" />
-                        <span>Switch to Cash on Delivery</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Submit CTA */}
               <button
                 type="submit"
-                disabled={isSubmitting || !hasAnyPaymentMethod || !paymentMethod}
+                disabled={isSubmitting || !hasAnyPaymentMethod || !paymentMethod || selectionMetrics.noneSelected}
                 className="w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer pressable"
               >
                 {isSubmitting ? (
@@ -735,6 +874,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   </>
                 ) : !hasAnyPaymentMethod ? (
                   <span>Payment Methods Currently Unavailable</span>
+                ) : selectionMetrics.noneSelected ? (
+                  <span>Select Items Above to Proceed</span>
                 ) : paymentMethod === 'razorpay' ? (
                   <>
                     <CreditCard className="w-4 h-4" />
@@ -743,17 +884,18 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 ) : paymentMethod === 'cod' ? (
                   <>
                     <Banknote className="w-4 h-4" />
-                    <span>Place Cash on Delivery Order</span>
+                    <span>Place Cash on Delivery Order ({formatINR(totals.total)})</span>
                   </>
                 ) : (
                   <span>Select Payment Method to Proceed</span>
                 )}
               </button>
 
-              <div className="text-center text-[10px] text-gray-400 space-y-1 pt-1">
-                <p>Secured with 256-bit SSL encryption</p>
-                <p>Showroom Support: +91 96875 99517 • Dhasa Junction, Gujarat.</p>
+              <div className="pt-2 border-t border-gray-100 flex items-center justify-center gap-2 text-[11px] text-gray-500">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>100% Genuine Certified Jewellery ? Showroom in Dhasa</span>
               </div>
+
             </div>
 
           </div>

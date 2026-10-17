@@ -1,21 +1,21 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { 
-  X, 
-  Trash2, 
-  Plus, 
-  Minus, 
-  ShoppingBag, 
-  ArrowRight, 
+import {
+  X,
+  Trash2,
+  Plus,
+  Minus,
+  ShoppingBag,
+  ArrowRight,
   ShieldCheck,
   CheckSquare,
   Square
 } from 'lucide-react';
 import type { CartItem } from '../../types';
-import { 
-  getCartItems, 
-  removeFromCart, 
-  updateCartQuantity, 
-  subscribeToCart, 
+import {
+  getCartItems,
+  removeFromCart,
+  updateCartQuantity,
+  subscribeToCart,
   getSelectedCartTotals,
   toggleCartItemSelection,
   selectAllCartItems
@@ -70,14 +70,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true">
       {/* Backdrop */}
-      <div 
+      <div
         className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-fade-in"
         onClick={onClose}
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
         <div className="w-screen max-w-md bg-white shadow-2xl flex flex-col border-l border-[#F5D8E0] animate-slide-in-right">
-          
+
           {/* Header */}
           <div className="p-4 sm:p-5 border-b border-[#F5D8E0] flex items-center justify-between bg-[#FFF8F9]">
             <div className="flex items-center gap-2">
@@ -288,6 +288,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <span>
                   {selectionMetrics.noneSelected
                     ? 'Select Items to Checkout'
+                    : selectionMetrics.allSelected
+                    ? `Checkout All Items (${selectionMetrics.selectedQuantity})`
                     : `Checkout Selected Items (${selectionMetrics.selectedQuantity})`}
                 </span>
                 <ArrowRight className="w-4 h-4" />
