@@ -228,6 +228,11 @@ export const App: React.FC = () => {
 
   // Update dynamic page document title
   useEffect(() => {
+    if (activeRoute === 'store' && selectedProductDetails) {
+      document.title = `${selectedProductDetails.name} | ${BUSINESS_DETAILS.brandName}`;
+      return;
+    }
+
     switch (activeRoute) {
       case 'checkout':
         document.title = `Checkout & Payment | ${BUSINESS_DETAILS.brandName}`;
@@ -239,31 +244,31 @@ export const App: React.FC = () => {
         document.title = `Order Confirmed | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'privacy-policy':
-        document.title = `Privacy Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        document.title = `Privacy Policy | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'terms-and-conditions':
-        document.title = `Terms & Conditions | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        document.title = `Terms & Conditions | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'shipping-policy':
-        document.title = `Shipping & Delivery Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        document.title = `Shipping & Delivery Policy | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'cancellation-refund-policy':
-        document.title = `Cancellation & Refund Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        document.title = `Cancellation & Refund Policy | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'payment-policy':
-        document.title = `Payment Policy | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        document.title = `Payment Policy | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'contact-us':
-        document.title = `Contact Us & Showroom Support | ${BUSINESS_DETAILS.brandName} Dhasa`;
+        document.title = `Contact Us | ${BUSINESS_DETAILS.brandName}`;
         break;
       case 'admin':
         document.title = `Admin Dashboard | ${BUSINESS_DETAILS.brandName}`;
         break;
       default:
-        document.title = `${BUSINESS_DETAILS.brandName} | Imitation Jewellery Dhasa Junction`;
+        document.title = BUSINESS_DETAILS.brandName;
         break;
     }
-  }, [activeRoute]);
+  }, [activeRoute, selectedProductDetails]);
 
   const navigateTo = (path: string) => {
     window.history.pushState(null, '', path);
