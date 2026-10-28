@@ -57,11 +57,11 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       {isLoading && (
         <div className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-6">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl sm:rounded-3xl border border-[#F5D8E0] p-3.5 sm:p-4 space-y-3 sm:space-y-4 animate-pulse">
-              <div className="aspect-square bg-[#FCECEF] rounded-xl sm:rounded-2xl w-full" />
-              <div className="h-4 bg-[#FCECEF] rounded-md w-3/4" />
-              <div className="h-3 bg-[#FCECEF] rounded-md w-1/2" />
-              <div className="h-8 bg-[#FCECEF] rounded-xl w-full" />
+            <div key={i} className="bg-white rounded-2xl sm:rounded-3xl border border-[#F4D9A0]/60 p-3.5 sm:p-4 space-y-3 sm:space-y-4 animate-pulse">
+              <div className="aspect-square bg-[#FAF4EA] rounded-xl sm:rounded-2xl w-full" />
+              <div className="h-4 bg-[#FAF4EA] rounded-md w-3/4" />
+              <div className="h-3 bg-[#FAF4EA] rounded-md w-1/2" />
+              <div className="h-8 bg-[#FAF4EA] rounded-xl w-full" />
             </div>
           ))}
         </div>
@@ -85,21 +85,21 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
 
       {/* Empty State */}
       {!isLoading && !error && products.length === 0 && (
-        <div className="bg-white rounded-3xl border border-[#F5D8E0] p-6 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs animate-fade-in-up">
-          <div className="w-16 h-16 rounded-full bg-[#FFF0F3] border border-[#F5B8C7] flex items-center justify-center mx-auto mb-4 text-[#8B4F58]">
-            <Sparkles className="w-8 h-8" />
+        <div className="bg-white rounded-3xl border border-[#F4D9A0] p-6 sm:p-12 text-center max-w-2xl mx-auto my-8 shadow-xs animate-fade-in-up">
+          <div className="w-16 h-16 rounded-full bg-[#FAF4EA] border border-[#F4D9A0] flex items-center justify-center mx-auto mb-4 text-[#7A1830]">
+            <Sparkles className="w-8 h-8 text-[#C8792C]" />
           </div>
-          <h3 className="font-heading text-xl sm:text-2xl font-semibold text-[#1F1A1C]">
+          <h3 className="font-heading text-xl sm:text-2xl font-semibold text-[#302218]">
             No Pieces Found In This Selection
           </h3>
-          <p className="text-xs sm:text-sm text-[#6E6267] mt-2 max-w-md mx-auto leading-relaxed">
+          <p className="text-xs sm:text-sm text-[#5B4632] mt-2 max-w-md mx-auto leading-relaxed">
             No jewellery items currently match your chosen filters. Explore our other collections or contact our showroom team directly on WhatsApp for fresh arrivals.
           </p>
 
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={onResetFilters}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-full border border-[#B76E79] text-[#8B4F58] text-xs sm:text-sm font-semibold hover:bg-[#FFF0F3] transition-colors pressable cursor-pointer"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-full border border-[#F4D9A0] text-[#5B4632] text-xs sm:text-sm font-semibold hover:border-[#7A1830] hover:text-[#7A1830] bg-[#FAF4EA]/50 transition-colors pressable cursor-pointer"
             >
               Clear All Filters
             </button>
@@ -120,22 +120,22 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
               <button
                 type="button"
                 onClick={onToggleSampleProducts}
-                className="text-[11px] text-[#8B4F58]/70 hover:text-[#8B4F58] hover:underline cursor-pointer"
+                className="text-[11px] text-[#7A1830]/80 hover:text-[#7A1830] hover:underline cursor-pointer"
               >
                 Testing website layout? Click to preview sample items
               </button>
             </div>
           )}
 
-          <div className="mt-6 pt-4 border-t border-[#F8E3E8] text-[10px] sm:text-[11px] text-[#9E9096]">
+          <div className="mt-6 pt-4 border-t border-[#F4D9A0]/50 text-[10px] sm:text-[11px] text-[#5B4632]/80">
             Store Location: {BUSINESS_DETAILS.address.landmark}, {BUSINESS_DETAILS.address.area} (PIN {BUSINESS_DETAILS.address.pincode})
           </div>
         </div>
       )}
 
-      {/* Populated Product Cards Grid */}
+      {/* Populated Product Cards Grid with Staggered Cascading Entrances */}
       {!isLoading && !error && products.length > 0 && (
-        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-6">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-6 stagger-container is-revealed">
           {products.map((product, index) => (
             <ProductCard
               key={product.id}

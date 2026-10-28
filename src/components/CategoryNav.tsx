@@ -69,31 +69,32 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
   const hasActiveFilters = genderFilter !== 'All' || selectedCategory !== 'All' || searchQuery.trim() !== '';
 
   return (
-    <div id="catalogue-section" className="pt-8 pb-4 scroll-mt-6 space-y-6">
+    <div id="catalogue-section" className="pt-10 pb-4 scroll-mt-6 space-y-6 reveal-on-scroll">
       
-      {/* Section Header */}
-      <div className="text-center max-w-3xl mx-auto px-4 animate-fade-in-up">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFF0F3] border border-[#F5B8C7] text-[#8B4F58] text-xs font-semibold uppercase tracking-wider">
-          <Sparkles className="w-3.5 h-3.5 text-[#D4A373]" />
+      {/* Section Header: Discover Handcrafted Elegance with Typography Stagger */}
+      <div className="text-center max-w-3xl mx-auto px-4 stagger-heading">
+        <span className="heading-tag inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#F4D9A0] text-[#7A1830] text-xs font-semibold uppercase tracking-wider shadow-2xs">
+          <Sparkles className="w-3.5 h-3.5 text-[#C8792C]" />
           <span>Curated Jewellery Catalogue</span>
         </span>
-        <h2 className="font-heading text-2xl min-[360px]:text-3xl sm:text-4xl text-[#1F1A1C] font-semibold mt-2">
+        <h2 className="heading-title font-heading text-2xl min-[360px]:text-3xl sm:text-4xl lg:text-5xl text-[#302218] font-semibold mt-2.5">
           Discover Handcrafted Elegance
         </h2>
-        <p className="text-xs sm:text-base text-[#6E6267] mt-1 font-light max-w-xl mx-auto">
+        <div className="heading-divider w-20 h-0.5 bg-gradient-to-r from-[#7A1830] via-[#C8792C] to-[#F4D9A0] mx-auto mt-2" />
+        <p className="heading-subtitle text-xs sm:text-base text-[#5B4632] mt-2 font-light max-w-xl mx-auto leading-relaxed">
           Filter by gender and jewellery category to explore our exclusive collection available at Dhasa Junction.
         </p>
       </div>
 
       {/* Primary Gender Selectors */}
       <div className="max-w-xl mx-auto px-3 sm:px-4 animate-fade-in-up delay-75">
-        <div className="bg-[#FFF0F3] p-1 sm:p-1.5 rounded-full border border-[#F3D7DE] flex items-center shadow-xs">
+        <div className="bg-white p-1 sm:p-1.5 rounded-full border border-[#F4D9A0] flex items-center shadow-2xs">
           <button
             onClick={() => setGenderFilter('All')}
             className={`flex-1 py-2 px-2 min-[360px]:px-3 rounded-full text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1 sm:gap-1.5 pressable cursor-pointer ${
               genderFilter === 'All'
-                ? 'bg-white text-[#8B4F58] shadow-xs'
-                : 'text-[#6E6267] hover:text-[#1F1A1C]'
+                ? 'bg-[#7A1830] text-white shadow-xs'
+                : 'text-[#5B4632] hover:text-[#302218]'
             }`}
           >
             <Users className="w-3.5 h-3.5 shrink-0" />
@@ -104,11 +105,11 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
             onClick={() => setGenderFilter('Female')}
             className={`flex-1 py-2 px-2 min-[360px]:px-3 rounded-full text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1 sm:gap-1.5 pressable cursor-pointer ${
               genderFilter === 'Female'
-                ? 'bg-white text-[#8B4F58] shadow-xs'
-                : 'text-[#6E6267] hover:text-[#1F1A1C]'
+                ? 'bg-[#7A1830] text-white shadow-xs'
+                : 'text-[#5B4632] hover:text-[#302218]'
             }`}
           >
-            <User className="w-3.5 h-3.5 text-pink-500 shrink-0" />
+            <User className="w-3.5 h-3.5 shrink-0" />
             <span>Women <span className="hidden min-[420px]:inline">(Female)</span></span>
           </button>
 
@@ -116,11 +117,11 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
             onClick={() => setGenderFilter('Male')}
             className={`flex-1 py-2 px-2 min-[360px]:px-3 rounded-full text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1 sm:gap-1.5 pressable cursor-pointer ${
               genderFilter === 'Male'
-                ? 'bg-white text-[#8B4F58] shadow-xs'
-                : 'text-[#6E6267] hover:text-[#1F1A1C]'
+                ? 'bg-[#7A1830] text-white shadow-xs'
+                : 'text-[#5B4632] hover:text-[#302218]'
             }`}
           >
-            <User className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+            <User className="w-3.5 h-3.5 shrink-0" />
             <span>Men <span className="hidden min-[420px]:inline">(Male)</span></span>
           </button>
         </div>
@@ -133,8 +134,8 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
             onClick={() => setSelectedCategory('All')}
             className={`shrink-0 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium border transition-all pressable cursor-pointer ${
               selectedCategory === 'All'
-                ? 'bg-[#8B4F58] text-white border-[#8B4F58] shadow-xs'
-                : 'bg-white text-[#5A4E53] border-[#F0C9D3] hover:border-[#8B4F58] hover:bg-[#FFF5F7]'
+                ? 'bg-[#7A1830] text-white border-[#7A1830] shadow-xs'
+                : 'bg-white text-[#5B4632] border-[#F4D9A0] hover:border-[#7A1830] hover:bg-[#FAF4EA]'
             }`}
           >
             All Categories
@@ -146,8 +147,8 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
               onClick={() => setSelectedCategory(cat.name)}
               className={`shrink-0 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium border transition-all pressable cursor-pointer ${
                 selectedCategory === cat.name
-                  ? 'bg-[#8B4F58] text-white border-[#8B4F58] shadow-xs'
-                  : 'bg-white text-[#5A4E53] border-[#F0C9D3] hover:border-[#8B4F58] hover:bg-[#FFF5F7]'
+                  ? 'bg-[#7A1830] text-white border-[#7A1830] shadow-xs'
+                  : 'bg-white text-[#5B4632] border-[#F4D9A0] hover:border-[#7A1830] hover:bg-[#FAF4EA]'
               }`}
             >
               {cat.name}
@@ -158,17 +159,17 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
 
       {/* Search & Sort Controls Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl border border-[#F5D8E0] p-3.5 sm:p-4 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="bg-white rounded-2xl border border-[#F4D9A0] p-3.5 sm:p-4 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
           
           {/* Search Box */}
           <div className="relative w-full md:w-80">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B4F58]" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A1830]" />
             <input
               type="text"
               placeholder="Search by name, code (e.g. VI-NK-101)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 rounded-xl border border-[#F0C9D3] text-xs sm:text-sm bg-[#FFFDFE] focus:outline-hidden focus:ring-2 focus:ring-[#B76E79]"
+              className="w-full pl-9 pr-8 py-2 rounded-xl border border-[#F4D9A0] text-xs sm:text-sm bg-[#FAF4EA]/40 text-[#302218] placeholder-[#5B4632]/60 focus:outline-hidden focus:ring-2 focus:ring-[#7A1830]"
             />
             {searchQuery && (
               <button
@@ -184,16 +185,16 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           {/* Counts & Sort Dropdown */}
           <div className="w-full md:w-auto flex items-center justify-between md:justify-end space-x-3 text-xs sm:text-sm">
             
-            <div className="text-[#6E6267] font-medium shrink-0">
-              Showing <span className="font-bold text-[#8B4F58]">{totalFilteredCount}</span> of {totalAvailableCount} designs
+            <div className="text-[#5B4632] font-medium shrink-0">
+              Showing <span className="font-bold text-[#7A1830]">{totalFilteredCount}</span> of {totalAvailableCount} designs
             </div>
 
             <div className="flex items-center space-x-2 shrink-0">
-              <SlidersHorizontal className="w-4 h-4 text-[#8B4F58] hidden sm:inline" />
+              <SlidersHorizontal className="w-4 h-4 text-[#7A1830] hidden sm:inline" />
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value as SortOption)}
-                className="bg-[#FFF8F9] border border-[#F0C9D3] rounded-xl px-3 py-2 text-xs sm:text-sm text-[#1F1A1C] focus:outline-hidden focus:ring-1 focus:ring-[#B76E79]"
+                className="bg-white border border-[#F4D9A0] rounded-xl px-3 py-2 text-xs sm:text-sm text-[#302218] focus:outline-hidden focus:ring-1 focus:ring-[#7A1830]"
               >
                 <option value="featured">Featured First</option>
                 <option value="newest">Newest Arrivals</option>
@@ -206,7 +207,7 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
             {hasActiveFilters && (
               <button
                 onClick={onResetFilters}
-                className="text-xs text-[#8B4F58] hover:text-[#9E5863] underline shrink-0 font-medium ml-2"
+                className="text-xs text-[#7A1830] hover:text-[#611225] underline shrink-0 font-medium ml-2"
               >
                 Reset All
               </button>

@@ -21,15 +21,15 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
   };
 
   return (
-    <aside aria-label="Quick mobile actions" className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#F5D8E0] px-3 py-2 pb-safe shadow-lg animate-fade-in-up">
+    <aside aria-label="Quick mobile actions" className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/98 backdrop-blur-md border-t border-[#F4D9A0] px-3 py-2 pb-safe shadow-lg animate-fade-in-up">
       <div className="flex items-center justify-between gap-1.5 min-[360px]:gap-2">
         
         {/* Browse Catalogue Button */}
         <button
           onClick={scrollToCatalogue}
-          className="flex-1 min-h-[44px] py-2 px-2.5 rounded-full bg-[#FFF0F3] text-[#8B4F58] text-xs font-semibold flex items-center justify-center gap-1.5 border border-[#F5B8C7] pressable cursor-pointer"
+          className="flex-1 min-h-[44px] py-2 px-2.5 rounded-full bg-[#FAF4EA] text-[#7A1830] text-xs font-semibold flex items-center justify-center gap-1.5 border border-[#F4D9A0] pressable cursor-pointer"
         >
-          <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+          <ShoppingBag className="w-3.5 h-3.5 shrink-0 text-[#7A1830]" />
           <span>Catalogue</span>
         </button>
 
@@ -38,7 +38,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
             {/* Shopping Bag Button in Checkout Mode */}
             <button
               onClick={onOpenCart}
-              className="flex-1 min-h-[44px] py-2 px-2.5 rounded-full bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#9E5863] text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs pressable cursor-pointer"
+              className="flex-1 min-h-[44px] py-2 px-2.5 rounded-full bg-[#7A1830] text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs pressable cursor-pointer"
             >
               <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
               <span>Bag ({cartItemCount})</span>
@@ -61,7 +61,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
             {/* Call Button in WhatsApp Mode */}
             <a
               href={`tel:${BUSINESS_DETAILS.whatsappPhone}`}
-              className="min-h-[44px] py-2 px-3 rounded-full border border-[#B76E79] text-[#8B4F58] text-xs font-semibold flex items-center justify-center gap-1 pressable"
+              className="min-h-[44px] py-2 px-3 rounded-full border border-[#F4D9A0] text-[#5B4632] hover:text-[#7A1830] bg-[#FAF4EA]/50 text-xs font-semibold flex items-center justify-center gap-1 pressable"
             >
               <Phone className="w-3.5 h-3.5 shrink-0" />
               <span>Call</span>

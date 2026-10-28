@@ -44,46 +44,46 @@ export const PageEntranceLoader: React.FC<PageEntranceLoaderProps> = ({ onComple
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-[#FFF5F8] via-[#FFF8F9] to-white transition-opacity duration-350 ease-out ${
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-[#FAF4EA] transition-opacity duration-350 ease-out ${
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       aria-hidden="true"
     >
       {/* Subtle radial ambient background glow */}
-      <div className="absolute w-72 h-72 sm:w-96 sm:h-96 bg-[#FAD2E1]/50 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute w-72 h-72 sm:w-96 sm:h-96 bg-[#F4D9A0]/40 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative text-center px-4 space-y-4 animate-scale-in">
         {/* Luxury Brand Monogram with Gentle Rotating Ring */}
         <div className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center">
           {/* Delicate decorative rotating border */}
-          <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#D4A373]/60 animate-spin-slow" />
+          <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#F4D9A0] animate-spin-slow" />
           
           {/* Brand Logo Badge */}
           <img
             src="/logo.png"
             alt="Vaidehi Imitation Logo"
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 border-2 border-[#D4A373] shadow-lg animate-pulse-glow"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 border-2 border-[#F4D9A0] shadow-lg animate-pulse-glow"
           />
 
           {/* Sparkle Accent */}
-          <div className="absolute -top-1 -right-1 text-[#D4A373] animate-bounce">
-            <Sparkles className="w-5 h-5 fill-[#ECC8AF]" />
+          <div className="absolute -top-1 -right-1 text-[#C8792C]">
+            <Sparkles className="w-5 h-5 fill-[#F4D9A0]" />
           </div>
         </div>
 
         {/* Brand Name Typography */}
         <div className="space-y-1">
-          <h1 className="font-brand text-lg sm:text-xl font-bold tracking-widest text-[#1F1A1C] uppercase">
+          <h1 className="font-brand text-lg sm:text-xl font-bold tracking-widest text-[#302218] uppercase">
             Vaidehi Imitation
           </h1>
-          <p className="text-[10px] sm:text-xs text-[#8B4F58] font-semibold tracking-widest uppercase">
+          <p className="text-[10px] sm:text-xs text-[#7A1830] font-semibold tracking-widest uppercase">
             Traditional & Bridal Jewellery • Dhasa Junction
           </p>
         </div>
 
         {/* Minimalist Golden Progress Line */}
-        <div className="w-24 sm:w-32 h-0.5 mx-auto bg-[#F0C9D3] rounded-full overflow-hidden">
-          <div className="w-full h-full bg-gradient-to-r from-[#D4A373] via-[#B76E79] to-[#D4A373] animate-shimmer" />
+        <div className="w-24 sm:w-32 h-0.5 mx-auto bg-[#F4D9A0]/50 rounded-full overflow-hidden">
+          <div className="w-full h-full bg-gradient-to-r from-[#F4D9A0] via-[#7A1830] to-[#C8792C] animate-shimmer" />
         </div>
       </div>
     </div>

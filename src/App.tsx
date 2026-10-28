@@ -15,15 +15,18 @@ import {
   validateCartAgainstProducts,
   subscribeToCart,
 } from './lib/cartStore';
+import { initGlobalScrollReveal } from './lib/useScrollReveal';
 
 // UI Components
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
+import { TrustHighlights } from './components/TrustHighlights';
+import { FeaturedCarousel } from './components/FeaturedCarousel';
+import { ShopByCategory } from './components/ShopByCategory';
 import { CategoryNav } from './components/CategoryNav';
 import { ProductGrid } from './components/ProductGrid';
-import { InstagramBanner } from './components/InstagramBanner';
-import { AboutSection } from './components/AboutSection';
-import { ReviewsSection } from './components/ReviewsSection';
+import { CuratedSelectionSection } from './components/CuratedSelectionSection';
+import { PersonalAssistanceSection } from './components/PersonalAssistanceSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 import { MobileBottomBar } from './components/MobileBottomBar';
@@ -183,6 +186,20 @@ export const App: React.FC = () => {
   const [buyProduct, setBuyProduct] = useState<Product | null>(null);
   const [buyProductSelectedImage, setBuyProductSelectedImage] = useState<string | null>(null);
   const [buyProductSelectedImageIndex, setBuyProductSelectedImageIndex] = useState<number>(0);
+
+  // Track initial page entrance loader completion for coordinated Hero animation
+  const [isHeroReady, setIsHeroReady] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return true;
+    }
+    return false;
+  });
+
+  // Initialize luxury scroll-triggered animations observer
+  useEffect(() => {
+    const cleanup = initGlobalScrollReveal();
+    return cleanup;
+  }, []);
 
   // Fetch store settings on mount
   useEffect(() => {
@@ -522,6 +539,11 @@ export const App: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleSelectCategoryFromShowcase = (category: ProductCategory) => {
+    setSelectedCategory(category);
+    scrollToCatalogue();
+  };
+
   const totalCartCount = useMemo(() => {
     return cartItems.reduce((acc, item) => acc + item.quantity, 0);
   }, [cartItems]);
@@ -599,12 +621,12 @@ export const App: React.FC = () => {
 
   // Customer-facing storefront
   return (
-    <div className="min-h-screen bg-[#FFF8F9] text-[#1F1A1C] flex flex-col font-sans-clean antialiased overflow-x-hidden w-full relative">
+    <div className="min-h-screen bg-[#FAF4EA] text-[#302218] flex flex-col font-sans-clean antialiased overflow-x-hidden w-full relative">
 
       {/* Page Refresh & Initial Entrance Luxury Animation */}
-      <PageEntranceLoader />
+      <PageEntranceLoader onComplete={() => setIsHeroReady(true)} />
 
-      {/* 1. Header with navigation, brand, search, call, and Cart/WhatsApp */}
+      {/* 1. Existing header and announcement bar */}
       <Header
         genderFilter={genderFilter}
         setGenderFilter={setGenderFilter}
@@ -617,12 +639,21 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 pb-16 sm:pb-0">
+      <main className="flex-1 pb-20 sm:pb-0">
 
-        {/* 2. Hero Section */}
-        <Hero onShopClick={scrollToCatalogue} />
+        {/* 2. New premium bridal-model hero section */}
+        <Hero onShopClick={scrollToCatalogue} isReady={isHeroReady} />
 
-        {/* 3. Category & Gender Navigation */}
+        {/* 3. Trust and benefit highlights */}
+        <TrustHighlights />
+
+        {/* 4. Featured Collection carousel with 12 distinct jewellery images rotating automatically */}
+        <FeaturedCarousel onShopClick={scrollToCatalogue} />
+
+        {/* 5. Shop by Category */}
+        <ShopByCategory onSelectCategory={handleSelectCategoryFromShowcase} />
+
+        {/* 6. Discover Handcrafted Elegance / catalogue introduction & filters */}
         <CategoryNav
           genderFilter={genderFilter}
           setGenderFilter={setGenderFilter}
@@ -637,7 +668,7 @@ export const App: React.FC = () => {
           onResetFilters={handleResetFilters}
         />
 
-        {/* 4. Product Catalogue Grid */}
+        {/* 7. Product filters and the complete existing product catalogue */}
         <ProductGrid
           products={filteredProducts}
           isLoading={isLoading}
@@ -651,21 +682,18 @@ export const App: React.FC = () => {
           onAddToCart={handleAddToCart}
         />
 
-        {/* 5. Instagram Highlight Banner */}
-        <InstagramBanner />
+        {/* 8. Curated Selection */}
+        <CuratedSelectionSection onShopClick={scrollToCatalogue} />
 
-        {/* 6. About Business Section */}
-        <AboutSection />
+        {/* 9. Personal Assistance */}
+        <PersonalAssistanceSection />
 
-        {/* 7. Customer Reviews Section */}
-        <ReviewsSection />
-
-        {/* 8. Showroom Location & Contact Details */}
+        {/* 10. Local Showroom / location information (Immediately above footer!) */}
         <ContactSection />
 
       </main>
 
-      {/* 9. Footer with Policies & Category Navigation */}
+      {/* 11. Footer with Policies & Category Navigation */}
       <Footer
         onSelectCategory={(cat) => setSelectedCategory(cat)}
         onNavigate={navigateTo}
