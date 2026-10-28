@@ -1,7 +1,7 @@
 import type { BusinessConfig, SpecificCategory } from '../types';
 
 export const BUSINESS_DETAILS: BusinessConfig = {
-  brandName: 'Vaidehi Imitation',
+  brandName: 'Vaidehi Imitation Dhasa',
   tagline: "Dhasa's Premier Destination for Bridal, Traditional & Fashion Imitation Jewellery",
   ownerName: 'Akshaysinh Kher',
   whatsappPhone: '9687599517',

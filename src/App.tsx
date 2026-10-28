@@ -226,47 +226,104 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Update dynamic page document title
+  // Update dynamic page document title and canonical SEO metadata
   useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    let pageTitle = BUSINESS_DETAILS.brandName;
+    let pagePath = '/';
+    let isNoIndex = false;
+
     if (activeRoute === 'store' && selectedProductDetails) {
-      document.title = `${selectedProductDetails.name} | ${BUSINESS_DETAILS.brandName}`;
-      return;
+      pageTitle = `${selectedProductDetails.name} | ${BUSINESS_DETAILS.brandName}`;
+      pagePath = `/?product=${encodeURIComponent(selectedProductDetails.code)}`;
+    } else {
+      switch (activeRoute) {
+        case 'checkout':
+          pageTitle = `Checkout & Payment | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/checkout';
+          isNoIndex = true;
+          break;
+        case 'checkout-error':
+          pageTitle = `Checkout Interrupted | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/checkout-error';
+          isNoIndex = true;
+          break;
+        case 'order-confirmation':
+          pageTitle = `Order Confirmed | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/order-confirmation';
+          isNoIndex = true;
+          break;
+        case 'privacy-policy':
+          pageTitle = `Privacy Policy | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/privacy-policy';
+          break;
+        case 'terms-and-conditions':
+          pageTitle = `Terms & Conditions | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/terms-and-conditions';
+          break;
+        case 'shipping-policy':
+          pageTitle = `Shipping & Delivery Policy | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/shipping-policy';
+          break;
+        case 'cancellation-refund-policy':
+          pageTitle = `Cancellation & Refund Policy | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/cancellation-refund-policy';
+          break;
+        case 'payment-policy':
+          pageTitle = `Payment Policy | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/payment-policy';
+          break;
+        case 'contact-us':
+          pageTitle = `Contact Us | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/contact-us';
+          break;
+        case 'admin':
+          pageTitle = `Admin Dashboard | ${BUSINESS_DETAILS.brandName}`;
+          pagePath = '/admin';
+          isNoIndex = true;
+          break;
+        default:
+          pageTitle = BUSINESS_DETAILS.brandName;
+          pagePath = '/';
+          break;
+      }
     }
 
-    switch (activeRoute) {
-      case 'checkout':
-        document.title = `Checkout & Payment | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'checkout-error':
-        document.title = `Checkout Interrupted | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'order-confirmation':
-        document.title = `Order Confirmed | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'privacy-policy':
-        document.title = `Privacy Policy | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'terms-and-conditions':
-        document.title = `Terms & Conditions | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'shipping-policy':
-        document.title = `Shipping & Delivery Policy | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'cancellation-refund-policy':
-        document.title = `Cancellation & Refund Policy | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'payment-policy':
-        document.title = `Payment Policy | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'contact-us':
-        document.title = `Contact Us | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      case 'admin':
-        document.title = `Admin Dashboard | ${BUSINESS_DETAILS.brandName}`;
-        break;
-      default:
-        document.title = BUSINESS_DETAILS.brandName;
-        break;
+    // 1. Update browser title
+    document.title = pageTitle;
+
+    // 2. Update canonical URL tag so each route has its own valid canonical
+    const canonicalUrl = `https://vaidehi-imitation.vercel.app${pagePath === '/' ? '/' : pagePath}`;
+    let canonicalLink = document.querySelector("link[rel='canonical']") as HTMLLinkElement | null;
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.rel = 'canonical';
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.href = canonicalUrl;
+
+    // 3. Update Open Graph tags
+    const ogUrl = document.querySelector("meta[property='og:url']");
+    if (ogUrl) {
+      ogUrl.setAttribute('content', canonicalUrl);
+    }
+    const ogTitle = document.querySelector("meta[property='og:title']");
+    if (ogTitle) {
+      ogTitle.setAttribute('content', pageTitle);
+    }
+
+    // 4. Update robots meta tag
+    let robotsMeta = document.querySelector("meta[name='robots']");
+    if (isNoIndex) {
+      if (!robotsMeta) {
+        robotsMeta = document.createElement('meta');
+        robotsMeta.setAttribute('name', 'robots');
+        document.head.appendChild(robotsMeta);
+      }
+      robotsMeta.setAttribute('content', 'noindex, nofollow');
+    } else if (robotsMeta) {
+      robotsMeta.setAttribute('content', 'index, follow');
     }
   }, [activeRoute, selectedProductDetails]);
 

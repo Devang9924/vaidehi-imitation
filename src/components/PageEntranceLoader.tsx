@@ -58,12 +58,12 @@ export const PageEntranceLoader: React.FC<PageEntranceLoaderProps> = ({ onComple
           {/* Delicate decorative rotating border */}
           <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#D4A373]/60 animate-spin-slow" />
           
-          {/* Monogram Badge */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-[#FFF0F3] via-white to-[#FCE4E9] border-2 border-[#D4A373] flex items-center justify-center shadow-lg animate-pulse-glow">
-            <span className="font-brand font-bold text-2xl sm:text-3xl text-[#8B4F58] tracking-tight">
-              VI
-            </span>
-          </div>
+          {/* Brand Logo Badge */}
+          <img
+            src="/logo.png"
+            alt="Vaidehi Imitation Logo"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover shrink-0 border-2 border-[#D4A373] shadow-lg animate-pulse-glow"
+          />
 
           {/* Sparkle Accent */}
           <div className="absolute -top-1 -right-1 text-[#D4A373] animate-bounce">

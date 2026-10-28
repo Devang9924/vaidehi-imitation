@@ -142,9 +142,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <div className="h-5 w-px bg-gray-200 hidden sm:block"></div>
 
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FFF0F3] to-[#FCE4E9] border border-[#D4A373] flex items-center justify-center font-brand font-bold text-xs text-[#8B4F58]">
-                VI
-              </div>
+              <img
+                src="/logo.png"
+                alt="Vaidehi Imitation Logo"
+                className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#D4A373] shadow-xs"
+              />
               <div>
                 <h1 className="font-heading text-sm sm:text-base font-bold text-[#1F1A1C] leading-tight">
                   Vaidehi Imitation • Admin Portal

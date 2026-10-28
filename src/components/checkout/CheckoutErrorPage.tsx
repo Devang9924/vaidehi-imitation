@@ -92,9 +92,11 @@ export const CheckoutErrorPage: React.FC<CheckoutErrorPageProps> = ({
           </button>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FFF0F3] to-[#FCE4E9] border border-[#D4A373] flex items-center justify-center font-brand font-bold text-xs text-[#8B4F58]">
-              VI
-            </div>
+            <img
+              src="/logo.png"
+              alt="Vaidehi Imitation Logo"
+              className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#D4A373] shadow-xs"
+            />
             <span className="font-heading font-bold text-sm text-[#1F1A1C]">
               Vaidehi Imitation
             </span>

@@ -59,12 +59,12 @@ export const Header: React.FC<HeaderProps> = ({
               className="group flex items-center gap-2.5 sm:gap-3 text-left focus:outline-hidden"
               aria-label="Vaidehi Imitation Home"
             >
-              {/* Compact Circular VI Monogram */}
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#FFF0F3] to-[#FCE4E9] border border-[#D4A373] flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                <span className="font-brand font-bold text-sm sm:text-base text-[#8B4F58] tracking-tight">
-                  VI
-                </span>
-              </div>
+              {/* Brand Logo */}
+              <img
+                src="/logo.png"
+                alt="Vaidehi Imitation Logo"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover shrink-0 shadow-2xs border border-[#D4A373] group-hover:scale-105 transition-transform"
+              />
 
               {/* Brand Typography */}
               <div className="min-w-0">

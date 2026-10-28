@@ -80,9 +80,11 @@ export const PolicyLayout: React.FC<PolicyLayoutProps> = ({
                 onClick={() => onNavigate('/')}
                 className="flex items-center gap-2.5 text-left cursor-pointer group"
               >
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FFF0F3] to-[#FCE4E9] border border-[#D4A373] flex items-center justify-center font-brand font-bold text-sm text-[#8B4F58] shadow-xs group-hover:scale-105 transition-transform">
-                  VI
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="Vaidehi Imitation Logo"
+                  className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#D4A373] shadow-xs group-hover:scale-105 transition-transform"
+                />
                 <div>
                   <span className="font-heading font-bold text-base sm:text-lg text-[#1F1A1C] block leading-tight">
                     {BUSINESS_DETAILS.brandName}

@@ -44,9 +44,11 @@ export const Footer: React.FC<FooterProps> = ({
           {/* 1. Brand Info (4 cols) */}
           <div className="sm:col-span-2 lg:col-span-4 space-y-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#ECC8AF] to-[#B76E79] flex items-center justify-center font-brand font-bold text-base text-white shadow-2xs">
-                VI
-              </div>
+              <img
+                src="/logo.png"
+                alt="Vaidehi Imitation Logo"
+                className="w-10 h-10 rounded-full object-cover shrink-0 border border-[#D4A373]/50 shadow-2xs"
+              />
               <div>
                 <span className="block font-brand text-lg font-bold tracking-wider text-white uppercase">
                   {BUSINESS_DETAILS.brandName}
